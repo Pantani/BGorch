@@ -1,0 +1,33 @@
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: starter-vm-single
+spec:
+  family: generic
+  profile: vm-single
+  plugin: generic-process
+  runtime:
+    backend: ssh-systemd
+    target: validators
+    backendConfig:
+      sshSystemd:
+        user: chainops
+        port: 22
+  nodePools:
+    - name: validator
+      replicas: 1
+      roles: [validator]
+      template:
+        workloads:
+          - name: node
+            mode: host
+            binary: /usr/local/bin/chaind
+            args: ["start", "--home", "/var/lib/chain"]
+            restartPolicy: always
+            volumeMounts:
+              - volume: datadir
+                path: /var/lib/chain
+        volumes:
+          - name: datadir
+            type: bind
+            source: /var/lib/chain

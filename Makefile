@@ -2,7 +2,7 @@ SHELL := /usr/bin/env bash
 
 GO ?= go
 PKGS ?= ./...
-APP ?= bgorch
+APP ?= chainops
 CMD_DIR ?= ./cmd/$(APP)
 BIN_DIR ?= ./bin
 BIN ?= $(BIN_DIR)/$(APP)

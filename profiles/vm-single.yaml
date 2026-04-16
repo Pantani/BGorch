@@ -1,0 +1,6 @@
+name: vm-single
+summary: Single-node host-mode deployment via ssh + systemd.
+family: generic
+plugin: generic-process
+backend: ssh-systemd
+recommended_for: operators with VM-based runtime

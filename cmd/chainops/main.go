@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	os.Exit(cli.RunProgram("bgorch", os.Args[1:]))
+	os.Exit(cli.RunProgram("chainops", os.Args[1:]))
 }

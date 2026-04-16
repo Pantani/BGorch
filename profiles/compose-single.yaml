@@ -1,0 +1,6 @@
+name: compose-single
+summary: Single-node docker compose deployment with explicit artifact rendering.
+family: generic
+plugin: generic-process
+backend: docker-compose
+recommended_for: operators and CI smoke tests

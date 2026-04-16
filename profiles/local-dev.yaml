@@ -1,0 +1,6 @@
+name: local-dev
+summary: Single-node local stack for rapid iteration.
+family: generic
+plugin: generic-process
+backend: docker-compose
+recommended_for: local developers

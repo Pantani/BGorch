@@ -1,0 +1,63 @@
+Chainops is a Go-first declarative orchestrator for blockchain operations.
+
+Mental model:
+- You define desired state in a ChainCluster spec.
+- chainops resolves defaults, validates schema/plugins/backends, and computes a deterministic plan.
+- apply reconciles desired state against current snapshot/runtime with explicit safety gates.
+
+One obvious path for new users:
+  chainops init
+  chainops doctor
+  chainops render -f chainops.yaml -o yaml
+  chainops plan -f chainops.yaml
+  chainops apply -f chainops.yaml --yes
+
+Usage:
+  chainops [command]
+
+Examples:
+  # Starter flow
+  chainops init --profile local-dev --name demo
+  chainops doctor -f chainops.yaml
+  chainops render -f chainops.yaml -o yaml
+  chainops plan -f chainops.yaml --out plan.json
+  chainops apply plan.json --yes
+
+  # Discoverability
+  chainops explain ChainCluster.spec.runtime
+  chainops explain plugin generic-process
+  chainops profile list
+  chainops completion zsh
+
+Available Commands:
+  apply       Apply desired state safely using spec or saved plan file.
+  backup      Inspect declared backup policy and backend readiness.
+  completion  Generate shell completion scripts.
+  context     Show effective CLI context and resolution.
+  destroy     Explicitly tear down local rendered state and snapshots.
+  diff        Show non-noop differences between desired state and snapshot.
+  doctor      Run actionable preflight and convergence checks.
+  explain     Explain schema fields, plugins, and profiles.
+  help        Help about any command
+  init        Bootstrap a new Chainops workspace and starter spec.
+  logs        Fetch runtime observation details for troubleshooting.
+  plan        Preview desired-vs-current changes without side effects.
+  plugin      Discover and inspect plugin integrations.
+  profile     Discover and inspect starter profiles.
+  render      Render canonical resolved config or backend artifacts.
+  restore     Inspect restore intent and validate prerequisites.
+  status      Show desired vs observed state and optional runtime observations.
+  upgrade     Inspect declared upgrade strategy before rollout.
+  validate    Validate spec + plugin/backend constraints.
+  version     Show CLI version and build identity.
+
+Flags:
+      --artifacts-dir string   Directory for rendered backend artifacts. (default ".chainops/render")
+      --config string          Path to CLI config file.
+  -f, --file string            Path to ChainCluster spec file. (default "chainops.yaml")
+  -h, --help                   help for chainops
+      --non-interactive        Disable prompts; require explicit flags for destructive actions.
+      --state-dir string       State directory used for snapshots and locks. (default ".chainops/state")
+      --yes                    Auto-confirm operations that require interactive confirmation.
+
+Use "chainops [command] --help" for more information about a command.

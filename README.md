@@ -1,225 +1,136 @@
-# BGorch - The Blockchain Gorchestrator
+# Chainops
 
-BGorch is a Go-first declarative orchestrator for blockchain node topologies.
+Chainops é um orquestrador declarativo, Go-first, para operações multi-blockchain.
 
-It gives you one control-plane workflow (`validate -> render -> plan -> apply -> status -> doctor`) and decouples:
+Foco do produto:
 
-- chain-family logic (`internal/chain/*` plugins),
-- runtime materialization (`internal/backend/*` backends),
-- deterministic desired-state diffing (`internal/planner`, `internal/state`).
+- desired state + plan/apply/reconcile
+- UX previsível para operadores
+- extensibilidade por plugin/família/backend
+- compatibilidade com múltiplos runtimes (compose, ssh+systemd, kubernetes, terraform, ansible)
 
-## Purpose
+`bgorch` continua disponível como alias legado para migração incremental.
 
-BGorch exists to manage multi-process blockchain nodes across different runtimes without hard-coding chain-specific semantics into the core.
+## Para Quem
 
-Current focus:
+- Desenvolvedor local: subir stack rápido, validar, destruir sem atrito.
+- Operador/SRE: diff claro, preflight, apply seguro, saída estável para automação.
+- Operador blockchain: escolher família/profile/backend sem precisar conhecer internals.
+- Autor de plugin: evoluir suporte de famílias sem acoplar no core.
 
-- deterministic artifact generation,
-- local-state-first reconciliation,
-- explicit plugin/backend contracts,
-- safe apply semantics with per-cluster/backend locking.
+## Mental Model
 
-## Key Features
+1. Você declara estado desejado (`ChainCluster`).
+2. `render` mostra configuração canônica resolvida.
+3. `plan` calcula diff determinístico sem efeitos colaterais.
+4. `apply` reconcilia estado com confirmação explícita.
+5. `status`/`doctor` explicam convergência e problemas.
 
-- Versioned API: `bgorch.io/v1alpha1`.
-- Plugins:
-  - `generic-process`
-  - `cometbft-family`
-- Backends:
-  - `docker-compose` (plus alias `compose`)
-  - `ssh-systemd` (plus alias `sshsystemd`)
-  - `kubernetes` (plus alias `k8s`)
-  - `terraform` (plus alias `tf`)
-  - `ansible`
-- Commands:
-  - `tui` / `ui` (interactive Bubble Tea terminal UI)
-  - `validate`, `render`, `plan`, `apply`, `status`, `doctor`
-- Optional runtime operations for compose backend:
-  - `apply --runtime-exec`
-  - `status --observe-runtime`
-  - `doctor --observe-runtime`
-- Optional runtime operations for `ssh-systemd`:
-  - `apply --runtime-exec`
-  - `status --observe-runtime`
-  - `doctor --observe-runtime`
-- Artifact-oriented adapters/backends:
-  - `kubernetes` renders Kubernetes manifests
-  - `terraform` renders infra module scaffold artifacts
-  - `ansible` renders inventory/playbook bootstrap artifacts
-- Snapshot-based plan/apply flow with deterministic hashing of services and artifacts.
-- Locking on `apply` by `(cluster, backend)` under `.bgorch/state`.
-- Typed plugin extension blocks:
-  - `pluginConfig.genericProcess` implemented
-  - `pluginConfig.cometBFT` implemented (see ADR 0006)
+## Quickstart (One Obvious Path)
 
-## High-Level Architecture
+```bash
+# 1) Bootstrap do workspace
+chainops init --profile local-dev --name demo
+
+# 2) Preflight
+chainops doctor -f chainops.yaml
+
+# 3) Configuração canônica resolvida
+chainops render -f chainops.yaml -o yaml
+
+# 4) Preview de mudanças
+chainops plan -f chainops.yaml --out plan.json
+
+# 5) Reconciliação segura
+chainops apply plan.json --yes
+```
+
+## Fluxo Principal
+
+```bash
+chainops init
+chainops doctor
+chainops render
+chainops plan
+chainops apply
+```
+
+## Comandos Principais
+
+- `init`: cria projeto/spec inicial (interativo ou não interativo).
+- `explain`: explica schema/campos/plugins/perfis.
+- `render`: exibe config canônica resolvida; também suporta render de artifacts.
+- `plan`: preview side-effect free; suporta `--out`.
+- `apply`: reconcilia desired state; suporta `apply <plan-file>`.
+- `status`: desired vs observed.
+- `logs`: detalhes de observação de runtime.
+- `doctor`: checks acionáveis de preflight/convergência.
+- `destroy`: teardown local explícito (artifacts + snapshot).
+- `backup`/`restore`/`upgrade`: inspeção de policy (adapters runtime pendentes).
+- `plugin`, `profile`, `context`, `completion`, `version`.
+
+Referência detalhada: [docs/reference/cli.md](docs/reference/cli.md).
+
+## Exemplos
+
+- `examples/starter-local-dev.yaml`
+- `examples/starter-vm-single.yaml`
+- `examples/generic-single-compose.yaml`
+- `examples/generic-single-ssh-systemd.yaml`
+- `examples/generic-single-kubernetes.yaml`
+- `examples/generic-infra-terraform.yaml`
+- `examples/generic-bootstrap-ansible.yaml`
+- `examples/cometbft-single-validator.yaml`
+
+## Configuração e Precedência
+
+Precedência explícita:
 
 ```text
-Spec YAML (v1alpha1)
-  -> spec.LoadFromFile + defaults
-  -> validate.Cluster + plugin.Validate + backend.ValidateTarget
-  -> plugin.Normalize + plugin.Build
-  -> backend.BuildDesired
-  -> DesiredState
-     -> render (artifacts)
-     -> plan (desired vs snapshot hashes)
-     -> apply (lock -> render -> optional runtime exec -> snapshot save)
-     -> status/doctor (desired vs snapshot + optional runtime observe)
+defaults < config file < env vars < flags
 ```
 
-Boundaries enforced in code:
+Documentação:
 
-- Core (`internal/app`) does orchestration and command semantics.
-- Plugins (`internal/chain`) own chain-family validation/normalization/artifacts.
-- Backends (`internal/backend`) own runtime translation/execution/observation.
-- Planner/state are runtime-agnostic and only compare desired vs snapshot.
+- [docs/reference/config-precedence.md](docs/reference/config-precedence.md)
+- [docs/reference/configuration-model.md](docs/reference/configuration-model.md)
 
-## Tech Stack
+## Arquitetura (Resumo)
 
-- Go `1.24.2`
-- YAML parsing: `gopkg.in/yaml.v3`
-- Terminal UI: Bubble Tea + Bubbles + Lip Gloss
-- Standard library for CLI, filesystem, process execution, and hashing
+Camadas principais:
 
-## Quickstart
+- `internal/cli`: UX/command model (Cobra).
+- `internal/config`: resolução de config (Viper, precedência explícita).
+- `internal/engine`: façade do core declarativo.
+- `internal/schema`: explain docs.
+- `internal/workspace`: onboarding/profiles/templates.
+- `internal/app`, `planner`, `state`, `backend`, `chain`: core reconcile.
+- `pkg/pluginapi`: API versionável para evolução de SDK.
 
-```bash
-# Interactive TUI (recommended for manual workflows)
-go run ./cmd/bgorch tui
+Detalhes: [docs/architecture/target-architecture.md](docs/architecture/target-architecture.md).
 
-# Validate
-go run ./cmd/bgorch validate -f examples/generic-single-compose.yaml
-
-# Render desired artifacts
-go run ./cmd/bgorch render -f examples/generic-single-compose.yaml -o .bgorch/render
-
-# Plan against local snapshot
-go run ./cmd/bgorch plan -f examples/generic-single-compose.yaml
-
-# Apply (write artifacts + snapshot)
-go run ./cmd/bgorch apply -f examples/generic-single-compose.yaml -o .bgorch/render
-
-# Apply with compose runtime execution (requires docker/compose)
-go run ./cmd/bgorch apply -f examples/generic-single-compose.yaml -o .bgorch/render --runtime-exec
-
-# Observe status/doctor (local snapshot mode)
-go run ./cmd/bgorch status -f examples/generic-single-compose.yaml
-go run ./cmd/bgorch doctor -f examples/generic-single-compose.yaml
-
-# Observe runtime for compose backend
-go run ./cmd/bgorch status -f examples/generic-single-compose.yaml -o .bgorch/render --observe-runtime
-go run ./cmd/bgorch doctor -f examples/generic-single-compose.yaml -o .bgorch/render --observe-runtime
-```
-
-## CLI Commands
-
-- `tui` (alias: `ui`)
-- `validate -f <spec> [--output text|json]`
-- `render -f <spec> [-o <dir>] [--write-state]`
-- `plan -f <spec> [--output text|json]`
-- `apply -f <spec> [-o <dir>] [--dry-run] [--runtime-exec] [--output text|json]`
-- `status -f <spec> [-o <dir>] [--observe-runtime] [--output text|json]`
-- `doctor -f <spec> [-o <dir>] [--observe-runtime] [--output text|json]`
-
-## TUI Shortcuts
-
-- `↑/↓` or `j/k`: navegar ações e opções
-- `tab` / `shift+tab`: alternar foco
-- `enter` ou `ctrl+r`: executar ação selecionada
-- `space`: alternar flag da opção focada
-- `/`: filtrar ações
-- `apply` sem `dry-run`: exige confirmação com `enter`
-- `esc`: voltar/cancelar
-- `?`: ajuda
-- `q` (`ctrl+c`): sair
-
-## Local Development
-
-### Prerequisites
-
-- Go `1.24.2+`
-- `gofmt` (bundled with Go)
-- Optional for compose runtime flags: Docker Engine + Compose plugin
-
-### Setup
-
-```bash
-go mod download
-```
-
-### Build
-
-```bash
-go build ./cmd/bgorch
-# or
-make build
-```
-
-### Test
+## Qualidade
 
 ```bash
 go test ./...
-# or
-make test
+make verify
 ```
 
-### Lint / Format / Verify
+Cobertura adicionada para:
 
-```bash
-make format     # gofmt check via scripts/verify.sh
-make vet
-make verify     # format + build + test + vet + race (when supported)
-```
+- precedência de config
+- render canônico side-effect free
+- plan side-effect free
+- help output golden
+- fluxo chainops (`init/plan/apply` com `--out`/`--yes`)
 
-## Environment Variables
+## Migração
 
-BGorch does not require application-level environment variables to run.
+Guia de migração CLI: [docs/migrations/cli-redesign.md](docs/migrations/cli-redesign.md).
 
-Variables currently used by tooling only:
+## Documentação UX
 
-- `GO_BIN`: Go binary override in `scripts/verify.sh`.
-- `PKGS`: package selector for verify targets.
-- `HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`: test isolation in CLI integration tests.
-
-## Build and Deployment Notes
-
-Current repository scope is local binary build + artifact rendering.
-
-- Build artifact: `bgorch` CLI binary.
-- Deployment pipelines (release automation, package distribution, remote rollout orchestration) are not implemented yet.
-- `apply` mutates local rendered artifacts and local snapshot state; remote execution is optional and backend-gated via flag.
-
-## Important Directories
-
-- `cmd/bgorch/`: CLI entrypoint.
-- `internal/api/v1alpha1/`: versioned spec types.
-- `internal/app/`: application service orchestrating command flows.
-- `internal/chain/`: plugin contracts and chain-family plugins.
-- `internal/backend/`: backend contracts and runtime backends.
-- `internal/spec/`: YAML loading, defaults, node expansion.
-- `internal/validate/`: core semantic validation.
-- `internal/planner/`: desired vs snapshot diff logic.
-- `internal/state/`: snapshot store and lock primitives.
-- `internal/renderer/`: artifact writer.
-- `internal/doctor/`: doctor report model.
-- `docs/`: ADRs, architecture, operations, schema, research.
-- `examples/`: runnable sample specs.
-- `test/`: integration/regression fixtures and golden outputs.
-
-## Current Constraints and Caveats
-
-- `status` and `doctor` are local-state-first by default; runtime observation is optional and backend-dependent.
-- Runtime operations are preflight-gated per backend and require backend prerequisites (for example, compose binary, SSH reachability, rendered artifacts, runtime targets when required).
-- `ssh-systemd` runtime operations run remote preflight/observation commands (`ssh` + `systemctl`) and are explicit opt-in flags.
-- `kubernetes`, `terraform`, and `ansible` are currently artifact-focused (no runtime exec/observe capability in this MVP).
-- `cometbft-family` plugin supports typed `pluginConfig.cometBFT` on cluster/node/workload scopes.
-- Locking is local filesystem based (single-machine safety, not distributed coordination).
-
-## Documentation Map
-
-- [Architecture maturity snapshot](docs/architecture/phase-2-3.md)
-- [Request lifecycle and flows](docs/architecture/request-lifecycle.md)
-- [Operations and command semantics](docs/operations/commands-and-integration.md)
-- [Developer workflows](docs/development/developer-workflows.md)
-- [API schema overview](docs/schema/v1alpha1.md)
-- [ADRs](docs/adr)
+- [docs/ux/cli-principles.md](docs/ux/cli-principles.md)
+- [docs/ux/personas.md](docs/ux/personas.md)
+- [docs/ux/user-journeys.md](docs/ux/user-journeys.md)
+- [docs/ux/error-style-guide.md](docs/ux/error-style-guide.md)

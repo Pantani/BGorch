@@ -287,6 +287,40 @@ func TestStatusAndDoctorObserveRuntimeFallback(t *testing.T) {
 	}
 }
 
+func TestPlanHasNoSideEffects(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	outDir := filepath.Join(baseDir, "out")
+	specPath := writeSpecFile(t, baseDir, "plan-side-effect-cluster")
+
+	application := New(Options{StateDir: stateDir})
+	plan, diags, err := application.Plan(context.Background(), specPath)
+	if err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+	if HasErrors(diags) {
+		t.Fatalf("unexpected diagnostics with errors in plan: %#v", diags)
+	}
+	if !plan.HasChanges() {
+		t.Fatalf("expected initial plan to contain creates")
+	}
+
+	store := state.NewStore(stateDir)
+	snapshot, err := store.Load("plan-side-effect-cluster", "docker-compose")
+	if err != nil {
+		t.Fatalf("load snapshot: %v", err)
+	}
+	if snapshot != nil {
+		t.Fatalf("plan should not persist snapshot")
+	}
+
+	if _, err := os.Stat(filepath.Join(outDir, "compose.yaml")); !os.IsNotExist(err) {
+		t.Fatalf("plan should not write artifacts, stat err: %v", err)
+	}
+}
+
 type fakeComposeRunner struct {
 	output string
 	err    error
