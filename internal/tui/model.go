@@ -79,6 +79,7 @@ type model struct {
 
 	statusLine  string
 	statusLevel outcomeLevel
+	confirmOpen bool
 
 	result          actionResult
 	resultViewport  viewport.Model
@@ -197,6 +198,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		}
+		return m, nil
 	}
 
 	if typed, ok := msg.(tea.KeyMsg); ok {
@@ -242,11 +244,32 @@ func (m model) updateDashboard(msg tea.Msg) (model, []tea.Cmd) {
 
 	if beforeAction != m.selectedAction() {
 		m.optionCursor = 0
+		m.confirmOpen = false
 		if !m.currentFocusAvailable() {
 			m.focus = focusActions
 		}
 		m.applyDashboardFocus()
 		m.resize()
+	}
+
+	if m.confirmOpen {
+		if typed, ok := msg.(tea.KeyMsg); ok {
+			switch {
+			case key.Matches(typed, m.keys.Select):
+				action := m.selectedAction()
+				cfg := m.config
+				m.confirmOpen = false
+				m.statusLine = "Running " + string(action) + "..."
+				m.statusLevel = outcomeSuccess
+				m.running = true
+				cmds = append(cmds, runActionCmd(m.runner, action, cfg))
+			case key.Matches(typed, m.keys.Back):
+				m.confirmOpen = false
+				m.statusLine = "Apply canceled."
+				m.statusLevel = outcomeWarning
+			}
+		}
+		return m, cmds
 	}
 
 	switch m.focus {
@@ -438,6 +461,9 @@ func (m model) renderDashboard() string {
 		m.renderOptions(action),
 		m.renderRunHint(action),
 	}
+	if m.confirmOpen {
+		formBlocks = append(formBlocks, m.renderConfirmDialog())
+	}
 	rightPanel := rightPanelStyle.Render(strings.Join(formBlocks, "\n\n"))
 
 	var body string
@@ -505,10 +531,22 @@ func (m model) renderOptions(action actionID) string {
 
 func (m model) renderRunHint(action actionID) string {
 	hint := fmt.Sprintf("enter/ctrl+r: run %s", action)
+	if m.confirmOpen {
+		hint = "confirmation required for apply"
+	}
 	if m.running {
 		hint = "running... inputs disabled"
 	}
 	return m.styles.ResultSummary.Render(hint)
+}
+
+func (m model) renderConfirmDialog() string {
+	lines := []string{
+		m.styles.StatusWarn.Render("Confirm apply"),
+		"This apply is not a dry-run and will mutate artifacts/state.",
+		m.styles.InputHint.Render("Press enter to confirm or esc to cancel."),
+	}
+	return m.styles.PanelFocused.Render(strings.Join(lines, "\n"))
 }
 
 func (m model) renderStatusLine() string {
@@ -578,6 +616,7 @@ func (m model) renderHelpView() string {
 		"- space: toggle focused option",
 		"- enter or ctrl+r: run selected action",
 		"- esc: return focus to action list",
+		"- apply (non dry-run): requires explicit confirmation",
 		"",
 		"Result",
 		"- tab: switch focus between summary and table",
@@ -624,6 +663,12 @@ func (m model) startSelectedAction() (model, tea.Cmd) {
 	}
 
 	action := m.selectedAction()
+	if action == actionApply && !m.config.DryRun {
+		m.confirmOpen = true
+		m.statusLine = "Apply will write artifacts/snapshot. Press enter to confirm or esc to cancel."
+		m.statusLevel = outcomeWarning
+		return m, nil
+	}
 	m.statusLine = "Running " + string(action) + "..."
 	m.statusLevel = outcomeSuccess
 	m.running = true

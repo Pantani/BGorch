@@ -27,7 +27,7 @@ Sem essas fronteiras, há risco de:
 
 Adotar modelo explícito de três classes de backend, com responsabilidades separadas:
 
-1. **Runtime backend** (`docker-compose`, `ssh-systemd`, futuro `kubernetes`)
+1. **Runtime backend** (`docker-compose`, `ssh-systemd`, `kubernetes`)
 2. **Infra adapter** (`terraform`)
 3. **Host config adapter** (`ansible`)
 
@@ -97,9 +97,9 @@ Estado atual da implementação:
 
 ## Próximos passos (propostos)
 
-1. Definir pacote `internal/backend/kubernetes` com build/render e observe básico.
-2. Definir contrato de adapter de infraestrutura para `terraform` (plan/apply/output import).
-3. Definir contrato de adapter de host config para `ansible` (inventory/playbook/result mapping).
+1. Evoluir `kubernetes` para capability de runtime (`execute/observe`) com semântica operacional explícita.
+2. Definir contrato de stages para `terraform` (plan/apply/output import) sem acoplar ao reconciler core.
+3. Definir contrato de stages para `ansible` (inventory/playbook/result mapping) com retorno estruturado para `status/doctor`.
 4. Adicionar matriz de testes de integração por capability (runtime/infra/config).
 5. Evoluir `status/doctor` para separar explicitamente:
    - estado local (snapshot),

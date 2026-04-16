@@ -28,9 +28,9 @@ Não implementado:
 |---|---|---|---|
 | Core (`internal/app`, planner/state) | BGorch core | validação final, plan, lock, apply orchestration, status/doctor | lógica específica de chain ou runtime interno de ferramenta externa |
 | Plugin de chain | `internal/chain/*` | validação/normalização de família, render específico de chain | provisionamento de infra ou gestão de runtime backend |
-| Runtime backend | `docker-compose`, `ssh-systemd`, futuro `kubernetes` | traduzir desired state para runtime e observar execução | virar semântica de protocolo/chain |
-| Infra adapter | futuro `terraform` | provisionar recursos base (rede, VM, disco, cluster) | substituir reconciler de processos |
-| Host config adapter | futuro `ansible` | bootstrap/config de host, distribuição de arquivos, handlers | substituir control plane declarativo |
+| Runtime backend | `docker-compose`, `ssh-systemd`, `kubernetes` | traduzir desired state para runtime e observar execução | virar semântica de protocolo/chain |
+| Infra adapter | `terraform` | provisionar recursos base (rede, VM, disco, cluster) | substituir reconciler de processos |
+| Host config adapter | `ansible` | bootstrap/config de host, distribuição de arquivos, handlers | substituir control plane declarativo |
 
 ## Fronteiras por backend alvo
 
@@ -84,17 +84,17 @@ Spec -> Validate -> Plugin Build -> Backend BuildDesired -> Plan
      -> optional runtime/adapter observation
 ```
 
-## Estratégia de rollout (proposta)
+## Estratégia de rollout (estado atual e próximos passos)
 
-1. **Kubernetes backend (mínimo)**:
-   - tradução determinística de desired state;
-   - observação básica para `status/doctor`.
-2. **Terraform adapter (mínimo)**:
-   - plan/apply orientado a infra;
-   - import de outputs para estágios seguintes.
-3. **Ansible adapter (mínimo)**:
-   - execução de bootstrap idempotente;
-   - retorno de resultado estruturado para diagnóstico.
+1. **Kubernetes backend (estado atual)**:
+   - tradução determinística de desired state implementada;
+   - próximo passo: observação/execução runtime opcional no fluxo `status/doctor/apply`.
+2. **Terraform adapter (estado atual)**:
+   - scaffold determinístico de artefatos implementado;
+   - próximo passo: estágios explícitos de plan/apply e import de outputs.
+3. **Ansible adapter (estado atual)**:
+   - render determinístico de inventory/group_vars/playbook implementado;
+   - próximo passo: execução controlada e coleta estruturada de resultados.
 
 ## Riscos operacionais
 

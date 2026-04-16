@@ -415,7 +415,7 @@ func printUsage() {
 	fmt.Println(`BGorch - The Blockchain Gorchestrator (MVP)
 
 Usage:
-  bgorch tui
+  bgorch tui      (alias: ui)
   bgorch validate -f <spec.yaml> [--output text|json]
   bgorch render   -f <spec.yaml> [-o <out-dir>] [--write-state]
   bgorch plan     -f <spec.yaml> [--output text|json]

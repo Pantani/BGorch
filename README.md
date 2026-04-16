@@ -32,6 +32,7 @@ Current focus:
   - `terraform` (plus alias `tf`)
   - `ansible`
 - Commands:
+  - `tui` / `ui` (interactive Bubble Tea terminal UI)
   - `validate`, `render`, `plan`, `apply`, `status`, `doctor`
 - Optional runtime operations for compose backend:
   - `apply --runtime-exec`
@@ -75,13 +76,17 @@ Boundaries enforced in code:
 
 ## Tech Stack
 
-- Go `1.22`
+- Go `1.24.2`
 - YAML parsing: `gopkg.in/yaml.v3`
+- Terminal UI: Bubble Tea + Bubbles + Lip Gloss
 - Standard library for CLI, filesystem, process execution, and hashing
 
 ## Quickstart
 
 ```bash
+# Interactive TUI (recommended for manual workflows)
+go run ./cmd/bgorch tui
+
 # Validate
 go run ./cmd/bgorch validate -f examples/generic-single-compose.yaml
 
@@ -108,6 +113,7 @@ go run ./cmd/bgorch doctor -f examples/generic-single-compose.yaml -o .bgorch/re
 
 ## CLI Commands
 
+- `tui` (alias: `ui`)
 - `validate -f <spec> [--output text|json]`
 - `render -f <spec> [-o <dir>] [--write-state]`
 - `plan -f <spec> [--output text|json]`
@@ -115,11 +121,23 @@ go run ./cmd/bgorch doctor -f examples/generic-single-compose.yaml -o .bgorch/re
 - `status -f <spec> [-o <dir>] [--observe-runtime] [--output text|json]`
 - `doctor -f <spec> [-o <dir>] [--observe-runtime] [--output text|json]`
 
+## TUI Shortcuts
+
+- `↑/↓` or `j/k`: navegar ações e opções
+- `tab` / `shift+tab`: alternar foco
+- `enter` ou `ctrl+r`: executar ação selecionada
+- `space`: alternar flag da opção focada
+- `/`: filtrar ações
+- `apply` sem `dry-run`: exige confirmação com `enter`
+- `esc`: voltar/cancelar
+- `?`: ajuda
+- `q` (`ctrl+c`): sair
+
 ## Local Development
 
 ### Prerequisites
 
-- Go `1.22+`
+- Go `1.24.2+`
 - `gofmt` (bundled with Go)
 - Optional for compose runtime flags: Docker Engine + Compose plugin
 

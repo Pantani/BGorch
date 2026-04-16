@@ -27,7 +27,7 @@ func newKeyMap() keyMap {
 		NextFocus:  key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next focus")),
 		PrevFocus:  key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "prev focus")),
 		Toggle:     key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "toggle option")),
-		Help:       key.NewBinding(key.WithKeys("?", "h"), key.WithHelp("?", "toggle help")),
+		Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "toggle help")),
 		Quit:       key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 		Filter:     key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter actions")),
 		TableFocus: key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "switch summary/table")),
