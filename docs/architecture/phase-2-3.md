@@ -28,8 +28,9 @@ This keeps chain semantics out of the backend layer and runtime details out of t
 | Backend `ssh-systemd` | Implemented | Host-mode validation + systemd/env/layout render + optional runtime preflight/observation. |
 | `ssh-systemd` runtime exec/observe | Implemented (preflight-gated) | Uses `ssh` + `systemctl`, requires targets/artifacts and explicit runtime flags. |
 | Typed `pluginConfig.cometBFT` | Implemented | CometBFT plugin consumes typed config with scope precedence (cluster -> node -> workload). |
-| Backend `kubernetes` | Planned | Not yet implemented. |
-| Terraform/Ansible adapters | Planned | Not yet implemented. |
+| Backend `kubernetes` | Implemented (artifact mode) | Deterministic render for Service/StatefulSet/PVC manifests. |
+| Terraform adapter | Implemented (artifact mode) | Deterministic scaffold (`main.tf`, `variables.tf`, `outputs.tf`, `tfvars`). |
+| Ansible adapter | Implemented (artifact mode) | Deterministic inventory/group_vars/playbook bootstrap render. |
 
 ## Core Flow (Implemented)
 
@@ -54,6 +55,7 @@ This keeps chain semantics out of the backend layer and runtime details out of t
 - no distributed reconciliation loop;
 - no distributed lock/state backend yet;
 - runtime operations are synchronous and command-driven (no controller loop);
+- `kubernetes`, `terraform`, and `ansible` do not implement runtime exec/observe capability in current MVP;
 - several schema fields are modeled in API types but not yet consumed end-to-end by backends.
 
 ## Decision References
@@ -64,3 +66,4 @@ This keeps chain semantics out of the backend layer and runtime details out of t
 - `docs/adr/0004-mvp-locking-and-command-semantics.md`
 - `docs/adr/0005-optional-runtime-execution-compose.md`
 - `docs/adr/0006-typed-family-plugin-config.md`
+- `docs/adr/0007-backend-expansion-kubernetes-terraform-ansible.md`

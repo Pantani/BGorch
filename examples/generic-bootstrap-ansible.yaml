@@ -1,0 +1,34 @@
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: generic-bootstrap
+spec:
+  family: generic
+  plugin: generic-process
+  profile: host-bootstrap
+  runtime:
+    backend: ansible
+    target: validator-01.local,validator-02.local
+    backendConfig:
+      sshSystemd:
+        user: ubuntu
+        port: 2222
+  nodePools:
+    - name: validators
+      replicas: 2
+      roles: [validator]
+      template:
+        role: validator
+        workloads:
+          - name: daemon
+            mode: host
+            binary: /usr/local/bin/chaind
+            args: ["start", "--home", "/var/lib/chain"]
+            env:
+              - name: CHAIN_ID
+                value: generic-local
+            restartPolicy: on-failure
+        volumes:
+          - name: datadir
+            type: bind
+            source: /var/lib/chain

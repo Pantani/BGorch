@@ -51,6 +51,38 @@ func TestCLISmokeExamples(t *testing.T) {
 				"ssh-systemd/nodes/validator/systemd/generic-ssh-validator-daemon.service",
 			},
 		},
+		{
+			name:        "kubernetes-single",
+			specRel:     "examples/generic-single-kubernetes.yaml",
+			clusterName: "generic-k8s",
+			backend:     "kubernetes",
+			expectedArtifacts: []string{
+				"kubernetes/manifests.yaml",
+				"nodes/validator/config/config.toml",
+			},
+		},
+		{
+			name:        "terraform-infra",
+			specRel:     "examples/generic-infra-terraform.yaml",
+			clusterName: "generic-infra",
+			backend:     "terraform",
+			expectedArtifacts: []string{
+				"terraform/main.tf",
+				"terraform/variables.tf",
+				"terraform/terraform.tfvars.json",
+			},
+		},
+		{
+			name:        "ansible-bootstrap",
+			specRel:     "examples/generic-bootstrap-ansible.yaml",
+			clusterName: "generic-bootstrap",
+			backend:     "ansible",
+			expectedArtifacts: []string{
+				"ansible/inventory.ini",
+				"ansible/group_vars/all.yml",
+				"ansible/playbook.bootstrap.yml",
+			},
+		},
 	}
 
 	for _, tc := range tests {

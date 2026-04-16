@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: generic-k8s-validator-daemon
+  namespace: chainops-dev
+  labels:
+    app.kubernetes.io/name: chainops
+    chainops.io/cluster: generic-k8s
+    chainops.io/node: validator
+    chainops.io/workload: daemon
+spec:
+  selector:
+    chainops.io/service: generic-k8s-validator-daemon
+  ports:
+    - name: 26656-tcp
+      port: 26656
+      targetPort: 26656
+      protocol: TCP
+    - name: 26657-tcp
+      port: 26657
+      targetPort: 26657
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: generic-k8s-validator-daemon
+  namespace: chainops-dev
+  labels:
+    app.kubernetes.io/name: chainops
+    chainops.io/cluster: generic-k8s
+    chainops.io/node: validator
+    chainops.io/workload: daemon
+spec:
+  serviceName: generic-k8s-validator-daemon
+  replicas: 1
+  selector:
+    matchLabels:
+      chainops.io/service: generic-k8s-validator-daemon
+  template:
+    metadata:
+      labels:
+        chainops.io/service: generic-k8s-validator-daemon
+        chainops.io/cluster: generic-k8s
+        chainops.io/node: validator
+    spec:
+      containers:
+        - name: daemon
+          image: "ghcr.io/example/customd:v1.0.0"
+          command:
+            - "customd"
+          args:
+            - "start"
+            - "--home"
+            - "/var/lib/customd"
+          env:
+            - name: CHAIN_ID
+              value: "test-chain"
+            - name: LOG_LEVEL
+              value: "info"
+          ports:
+            - name: 26656-tcp
+              containerPort: 26656
+              protocol: TCP
+            - name: 26657-tcp
+              containerPort: 26657
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/customd
+            - name: logs
+              mountPath: /var/log/customd
+              readOnly: true
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+    - metadata:
+        name: logs
+        annotations:
+          chainops.io/source-volume-type: bind
+          chainops.io/source-path: "/var/log/customd"
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi

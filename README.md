@@ -28,6 +28,9 @@ Current focus:
 - Backends:
   - `docker-compose` (plus alias `compose`)
   - `ssh-systemd` (plus alias `sshsystemd`)
+  - `kubernetes` (plus alias `k8s`)
+  - `terraform` (plus alias `tf`)
+  - `ansible`
 - Commands:
   - `validate`, `render`, `plan`, `apply`, `status`, `doctor`
 - Optional runtime operations for compose backend:
@@ -38,6 +41,10 @@ Current focus:
   - `apply --runtime-exec`
   - `status --observe-runtime`
   - `doctor --observe-runtime`
+- Artifact-oriented adapters/backends:
+  - `kubernetes` renders Kubernetes manifests
+  - `terraform` renders infra module scaffold artifacts
+  - `ansible` renders inventory/playbook bootstrap artifacts
 - Snapshot-based plan/apply flow with deterministic hashing of services and artifacts.
 - Locking on `apply` by `(cluster, backend)` under `.bgorch/state`.
 - Typed plugin extension blocks:
@@ -186,6 +193,7 @@ Current repository scope is local binary build + artifact rendering.
 - `status` and `doctor` are local-state-first by default; runtime observation is optional and backend-dependent.
 - Runtime operations are preflight-gated per backend and require backend prerequisites (for example, compose binary, SSH reachability, rendered artifacts, runtime targets when required).
 - `ssh-systemd` runtime operations run remote preflight/observation commands (`ssh` + `systemctl`) and are explicit opt-in flags.
+- `kubernetes`, `terraform`, and `ansible` are currently artifact-focused (no runtime exec/observe capability in this MVP).
 - `cometbft-family` plugin supports typed `pluginConfig.cometBFT` on cluster/node/workload scopes.
 - Locking is local filesystem based (single-machine safety, not distributed coordination).
 

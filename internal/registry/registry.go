@@ -6,8 +6,11 @@ import (
 	"sync"
 
 	"github.com/Pantani/gorchestrator/internal/backend"
+	"github.com/Pantani/gorchestrator/internal/backend/ansible"
 	"github.com/Pantani/gorchestrator/internal/backend/compose"
+	"github.com/Pantani/gorchestrator/internal/backend/kubernetes"
 	"github.com/Pantani/gorchestrator/internal/backend/sshsystemd"
+	"github.com/Pantani/gorchestrator/internal/backend/terraform"
 	"github.com/Pantani/gorchestrator/internal/chain"
 	"github.com/Pantani/gorchestrator/internal/chain/cometbft"
 	"github.com/Pantani/gorchestrator/internal/chain/genericprocess"
@@ -46,6 +49,9 @@ func NewDefault() *Registries {
 	r.MustRegisterPlugin(cometbft.New())
 	r.MustRegisterBackend(compose.New())
 	r.MustRegisterBackend(sshsystemd.New())
+	r.MustRegisterBackend(kubernetes.New())
+	r.MustRegisterBackend(terraform.New())
+	r.MustRegisterBackend(ansible.New())
 	return r
 }
 
@@ -78,6 +84,10 @@ func (r *BackendRegistry) Register(b backend.Backend) error {
 		r.backends["compose"] = b
 	case "ssh-systemd":
 		r.backends["sshsystemd"] = b
+	case "kubernetes":
+		r.backends["k8s"] = b
+	case "terraform":
+		r.backends["tf"] = b
 	}
 	return nil
 }

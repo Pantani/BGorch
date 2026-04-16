@@ -1,0 +1,26 @@
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: generic-infra
+spec:
+  family: generic
+  plugin: generic-process
+  profile: infra-bootstrap
+  runtime:
+    backend: terraform
+    target: env/dev
+  nodePools:
+    - name: validators
+      replicas: 2
+      roles: [validator]
+      template:
+        workloads:
+          - name: daemon
+            mode: host
+            binary: /usr/local/bin/chaind
+            args: ["start", "--home", "/var/lib/chain"]
+            restartPolicy: on-failure
+        volumes:
+          - name: datadir
+            type: bind
+            source: /var/lib/chain

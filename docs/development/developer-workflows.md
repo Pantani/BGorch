@@ -7,7 +7,8 @@ This document is implementation-focused and aligned with current repository beha
 ### Prerequisites
 
 - Go `1.22+`
-- Optional: Docker + Compose plugin for runtime flags with compose backend
+- Optional: Docker + Compose plugin for compose runtime flags
+- Optional: SSH connectivity + `systemctl` on targets for ssh-systemd runtime flags
 
 ### Bootstrap
 
@@ -43,6 +44,14 @@ go run ./cmd/bgorch status -f examples/generic-single-compose.yaml -o .bgorch/re
 go run ./cmd/bgorch doctor -f examples/generic-single-compose.yaml -o .bgorch/render --observe-runtime
 ```
 
+### Runtime SSH/systemd loop (optional)
+
+```bash
+go run ./cmd/bgorch apply  -f examples/generic-single-ssh-systemd.yaml -o .bgorch/render --runtime-exec
+go run ./cmd/bgorch status -f examples/generic-single-ssh-systemd.yaml -o .bgorch/render --observe-runtime
+go run ./cmd/bgorch doctor -f examples/generic-single-ssh-systemd.yaml -o .bgorch/render --observe-runtime
+```
+
 ## Running Specific Subsystems
 
 ### Plugin behavior only
@@ -56,7 +65,7 @@ go test ./internal/chain/genericprocess ./internal/chain/cometbft -v
 ### Backend rendering only
 
 ```bash
-go test ./internal/backend/compose ./internal/backend/sshsystemd -v
+go test ./internal/backend/compose ./internal/backend/sshsystemd ./internal/backend/kubernetes ./internal/backend/terraform ./internal/backend/ansible -v
 ```
 
 ### Planner/state semantics only
@@ -127,7 +136,7 @@ make verify
 Repository scripts expect deterministic outputs:
 
 - sorted artifacts and service lists in backends/plugins,
-- stable golden outputs for compose and ssh-systemd renderers,
+- stable deterministic outputs for backend renderers (compose, ssh-systemd, kubernetes, terraform, ansible),
 - no unformatted Go files.
 
 ## Migrations / Seed Data

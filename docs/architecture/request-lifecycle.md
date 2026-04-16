@@ -40,7 +40,7 @@ This document describes command execution flow as implemented in `internal/app/a
 4. Build plan.
 5. If `--dry-run`, return plan without writing artifacts/snapshot.
 6. Write artifacts.
-7. If `--runtime-exec`, execute backend runtime action (compose backend only today).
+7. If `--runtime-exec`, execute backend runtime action when backend supports runtime execution.
 8. Save new snapshot.
 9. Release lock.
 
@@ -147,7 +147,26 @@ Key constraints:
 
 - Validates host-mode workloads.
 - Renders systemd units, env files, and node directory layout files.
-- Does not execute remote SSH/systemctl actions in current implementation.
+- Optional runtime actions:
+  - `ExecuteRuntime`: remote SSH preflight against `systemctl --version`
+  - `ObserveRuntime`: remote SSH `systemctl list-units` observation
+- Requires rendered ssh-systemd artifacts and runtime targets.
+
+### Kubernetes backend (`kubernetes`)
+
+- Validates container workloads with declared image/ports.
+- Renders deterministic Kubernetes manifests (`Service` + `StatefulSet` + `volumeClaimTemplates`) in `kubernetes/manifests.yaml`.
+- Does not execute cluster runtime actions in current MVP.
+
+### Terraform adapter backend (`terraform`)
+
+- Renders deterministic infra adapter scaffold (`main.tf`, `variables.tf`, `outputs.tf`, `terraform.tfvars.json`).
+- Does not execute terraform runtime actions in current MVP.
+
+### Ansible adapter backend (`ansible`)
+
+- Renders deterministic bootstrap artifacts (`inventory.ini`, `group_vars/all.yml`, `playbook.bootstrap.yml`).
+- Does not execute ansible runtime actions in current MVP.
 
 ## 6. Configuration loading and override rules
 
@@ -199,7 +218,7 @@ There is no built-in authentication or authorization layer in the current codeba
 ## 10. Testing strategy (implemented)
 
 - unit tests for validator, planner, locking, doctor model;
-- golden tests for compose and ssh-systemd artifact rendering;
+- golden/unit tests for compose, ssh-systemd, kubernetes, terraform, and ansible artifact rendering;
 - plugin tests for cometbft artifact generation and deterministic output;
 - app-layer tests for dry-run behavior, idempotence, runtime execution/observe fallback;
 - CLI integration/regression tests for smoke flow and lock contention behavior.

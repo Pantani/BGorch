@@ -72,6 +72,9 @@ go run ./cmd/bgorch doctor -f examples/generic-single-ssh-systemd.yaml -o .bgorc
 |---|---|---|---|---|
 | `docker-compose` | Yes | Yes | Yes | Requires Docker/Compose and rendered compose file. |
 | `ssh-systemd` | Yes | Yes | Yes | Requires rendered artifacts, runtime targets, `ssh` binary and remote `systemctl`. |
+| `kubernetes` | Yes | No | No | Renders deterministic Service/StatefulSet/PVC manifests (`kubernetes/manifests.yaml`). |
+| `terraform` | Yes | No | No | Renders deterministic infra adapter scaffold (`terraform/*.tf`, `terraform.tfvars.json`). |
+| `ansible` | Yes | No | No | Renders deterministic inventory/group vars/bootstrap playbook (`ansible/*`). |
 
 ## Plugin and Backend Contracts
 
@@ -109,6 +112,9 @@ Responsibilities:
 |---|---|---|
 | `generic-process` | `docker-compose` | Supported |
 | `generic-process` | `ssh-systemd` | Supported |
+| `generic-process` | `kubernetes` | Supported (artifact mode) |
+| `generic-process` | `terraform` | Supported (artifact mode) |
+| `generic-process` | `ansible` | Supported (artifact mode) |
 | `cometbft-family` | `docker-compose` | Supported |
 | `cometbft-family` | `ssh-systemd` | Limited by workload mode constraints |
 
@@ -128,4 +134,5 @@ Responsibilities:
 - snapshot/lock model is local filesystem based;
 - no distributed lock or shared state store;
 - runtime ops fail fast if backend preflight is not satisfied (for example: missing compose/ssh/systemctl, missing runtime targets, missing rendered artifacts);
+- `kubernetes`, `terraform`, and `ansible` do not expose runtime exec/observe capability yet;
 - no asynchronous reconciliation loop/background workers.

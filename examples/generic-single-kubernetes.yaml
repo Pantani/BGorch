@@ -1,0 +1,52 @@
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: generic-k8s
+spec:
+  family: generic
+  plugin: generic-process
+  runtime:
+    backend: kubernetes
+    target: chainops-dev
+  nodePools:
+    - name: validator
+      replicas: 1
+      roles: [validator]
+      template:
+        name: validator
+        workloads:
+          - name: daemon
+            mode: container
+            image: ghcr.io/example/customd:v1.0.0
+            command: ["customd"]
+            args: ["start", "--home", "/var/lib/customd"]
+            restartPolicy: unless-stopped
+            env:
+              - name: CHAIN_ID
+                value: test-chain
+              - name: LOG_LEVEL
+                value: info
+            ports:
+              - name: p2p
+                containerPort: 26656
+                protocol: tcp
+              - name: rpc
+                containerPort: 26657
+                protocol: tcp
+            volumeMounts:
+              - volume: data
+                path: /var/lib/customd
+              - volume: logs
+                path: /var/log/customd
+                readOnly: true
+        volumes:
+          - name: data
+            type: named
+          - name: logs
+            type: bind
+            source: /var/log/customd
+        files:
+          - path: config/config.toml
+            content: |
+              moniker = "validator"
+              pruning = "default"

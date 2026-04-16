@@ -13,6 +13,7 @@ import (
 	"github.com/Pantani/gorchestrator/internal/app"
 	"github.com/Pantani/gorchestrator/internal/doctor"
 	"github.com/Pantani/gorchestrator/internal/domain"
+	"github.com/Pantani/gorchestrator/internal/tui"
 )
 
 // Run executes the BGorch CLI command tree and returns process exit code.
@@ -25,6 +26,8 @@ func Run(args []string) int {
 	application := app.New(app.Options{StateDir: ".bgorch/state"})
 
 	switch args[0] {
+	case "tui", "ui":
+		return runTUI(application)
 	case "validate":
 		return runValidate(application, args[1:])
 	case "render":
@@ -45,6 +48,14 @@ func Run(args []string) int {
 		printUsage()
 		return 2
 	}
+}
+
+func runTUI(application *app.App) int {
+	if err := tui.Run(application); err != nil {
+		fmt.Fprintf(os.Stderr, "tui failed: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 func runValidate(application *app.App, args []string) int {
@@ -404,6 +415,7 @@ func printUsage() {
 	fmt.Println(`BGorch - The Blockchain Gorchestrator (MVP)
 
 Usage:
+  bgorch tui
   bgorch validate -f <spec.yaml> [--output text|json]
   bgorch render   -f <spec.yaml> [-o <out-dir>] [--write-state]
   bgorch plan     -f <spec.yaml> [--output text|json]
@@ -413,7 +425,7 @@ Usage:
 
 Notes:
   - Current plugins: generic-process, cometbft-family
-  - Current MVP implements backends: docker-compose, ssh-systemd
-  - Runtime flags are backend-dependent (compose implements runtime exec/observe)
+  - Current MVP implements backends: docker-compose, ssh-systemd, kubernetes, terraform, ansible
+  - Runtime flags are backend-dependent (runtime exec/observe currently: compose, ssh-systemd)
   - State snapshots and locks are stored in .bgorch/state`)
 }
