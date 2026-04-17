@@ -218,6 +218,10 @@ const (
 type PluginConfig struct {
 	GenericProcess *GenericProcessConfig `yaml:"genericProcess,omitempty" json:"genericProcess,omitempty"`
 	CometBFT       *CometBFTConfig       `yaml:"cometBFT,omitempty" json:"cometBFT,omitempty"`
+	EVM            *EVMConfig            `yaml:"evm,omitempty" json:"evm,omitempty"`
+	Solana         *SolanaConfig         `yaml:"solana,omitempty" json:"solana,omitempty"`
+	Bitcoin        *BitcoinConfig        `yaml:"bitcoin,omitempty" json:"bitcoin,omitempty"`
+	Cosmos         *CosmosConfig         `yaml:"cosmos,omitempty" json:"cosmos,omitempty"`
 }
 
 // GenericProcessConfig contains generic-process plugin extension fields.
@@ -240,4 +244,69 @@ type CometBFTConfig struct {
 	PrometheusListenAddr string   `yaml:"prometheusListenAddr,omitempty" json:"prometheusListenAddr,omitempty"`
 	APIEnabled           *bool    `yaml:"apiEnabled,omitempty" json:"apiEnabled,omitempty"`
 	GRPCEnabled          *bool    `yaml:"grpcEnabled,omitempty" json:"grpcEnabled,omitempty"`
+}
+
+// EVMConfig contains typed extension fields for EVM execution clients.
+type EVMConfig struct {
+	Client         string   `yaml:"client,omitempty" json:"client,omitempty"`
+	Network        string   `yaml:"network,omitempty" json:"network,omitempty"`
+	ChainID        int64    `yaml:"chainID,omitempty" json:"chainID,omitempty"`
+	SyncMode       string   `yaml:"syncMode,omitempty" json:"syncMode,omitempty"`
+	HTTPEnabled    *bool    `yaml:"httpEnabled,omitempty" json:"httpEnabled,omitempty"`
+	WSEnabled      *bool    `yaml:"wsEnabled,omitempty" json:"wsEnabled,omitempty"`
+	AuthRPCEnabled *bool    `yaml:"authRPCEnabled,omitempty" json:"authRPCEnabled,omitempty"`
+	MetricsEnabled *bool    `yaml:"metricsEnabled,omitempty" json:"metricsEnabled,omitempty"`
+	P2PPort        int      `yaml:"p2pPort,omitempty" json:"p2pPort,omitempty"`
+	HTTPPort       int      `yaml:"httpPort,omitempty" json:"httpPort,omitempty"`
+	WSPort         int      `yaml:"wsPort,omitempty" json:"wsPort,omitempty"`
+	AuthRPCPort    int      `yaml:"authRPCPort,omitempty" json:"authRPCPort,omitempty"`
+	MetricsPort    int      `yaml:"metricsPort,omitempty" json:"metricsPort,omitempty"`
+	Bootnodes      []string `yaml:"bootnodes,omitempty" json:"bootnodes,omitempty"`
+}
+
+// SolanaConfig contains typed extension fields for Solana validator/RPC nodes.
+type SolanaConfig struct {
+	Client              string   `yaml:"client,omitempty" json:"client,omitempty"`
+	Cluster             string   `yaml:"cluster,omitempty" json:"cluster,omitempty"`
+	RPCPort             int      `yaml:"rpcPort,omitempty" json:"rpcPort,omitempty"`
+	WSPort              int      `yaml:"wsPort,omitempty" json:"wsPort,omitempty"`
+	GossipPort          int      `yaml:"gossipPort,omitempty" json:"gossipPort,omitempty"`
+	DynamicPortRange    string   `yaml:"dynamicPortRange,omitempty" json:"dynamicPortRange,omitempty"`
+	EntryPoints         []string `yaml:"entryPoints,omitempty" json:"entryPoints,omitempty"`
+	FullRPC             *bool    `yaml:"fullRPC,omitempty" json:"fullRPC,omitempty"`
+	PrivateRPC          *bool    `yaml:"privateRPC,omitempty" json:"privateRPC,omitempty"`
+	NoVoting            *bool    `yaml:"noVoting,omitempty" json:"noVoting,omitempty"`
+	ExpectedGenesisHash string   `yaml:"expectedGenesisHash,omitempty" json:"expectedGenesisHash,omitempty"`
+}
+
+// BitcoinConfig contains typed extension fields for Bitcoin full nodes.
+type BitcoinConfig struct {
+	Client       string   `yaml:"client,omitempty" json:"client,omitempty"`
+	Network      string   `yaml:"network,omitempty" json:"network,omitempty"`
+	RPCPort      int      `yaml:"rpcPort,omitempty" json:"rpcPort,omitempty"`
+	P2PPort      int      `yaml:"p2pPort,omitempty" json:"p2pPort,omitempty"`
+	ZMQBlockAddr string   `yaml:"zmqBlockAddr,omitempty" json:"zmqBlockAddr,omitempty"`
+	ZMQTxAddr    string   `yaml:"zmqTxAddr,omitempty" json:"zmqTxAddr,omitempty"`
+	TxIndex      *bool    `yaml:"txIndex,omitempty" json:"txIndex,omitempty"`
+	PruneMB      int      `yaml:"pruneMB,omitempty" json:"pruneMB,omitempty"`
+	ExtraArgs    []string `yaml:"extraArgs,omitempty" json:"extraArgs,omitempty"`
+}
+
+// CosmosConfig contains typed extension fields for Cosmos-SDK based chains.
+type CosmosConfig struct {
+	Client           string   `yaml:"client,omitempty" json:"client,omitempty"`
+	ChainID          string   `yaml:"chainID,omitempty" json:"chainID,omitempty"`
+	Moniker          string   `yaml:"moniker,omitempty" json:"moniker,omitempty"`
+	DaemonBinary     string   `yaml:"daemonBinary,omitempty" json:"daemonBinary,omitempty"`
+	HomeDir          string   `yaml:"homeDir,omitempty" json:"homeDir,omitempty"`
+	P2PPort          int      `yaml:"p2pPort,omitempty" json:"p2pPort,omitempty"`
+	RPCPort          int      `yaml:"rpcPort,omitempty" json:"rpcPort,omitempty"`
+	APIEnabled       *bool    `yaml:"apiEnabled,omitempty" json:"apiEnabled,omitempty"`
+	APIPort          int      `yaml:"apiPort,omitempty" json:"apiPort,omitempty"`
+	GRPCEnabled      *bool    `yaml:"grpcEnabled,omitempty" json:"grpcEnabled,omitempty"`
+	GRPCPort         int      `yaml:"grpcPort,omitempty" json:"grpcPort,omitempty"`
+	Pruning          string   `yaml:"pruning,omitempty" json:"pruning,omitempty"`
+	MinimumGasPrices string   `yaml:"minimumGasPrices,omitempty" json:"minimumGasPrices,omitempty"`
+	Seeds            []string `yaml:"seeds,omitempty" json:"seeds,omitempty"`
+	PersistentPeers  []string `yaml:"persistentPeers,omitempty" json:"persistentPeers,omitempty"`
 }

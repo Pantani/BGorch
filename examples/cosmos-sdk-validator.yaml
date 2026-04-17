@@ -1,0 +1,62 @@
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: cosmos-validator
+spec:
+  family: cosmos
+  plugin: cosmos-family
+  profile: cosmos-validator
+  runtime:
+    backend: docker-compose
+    backendConfig:
+      compose:
+        projectName: cosmos-validator
+        outputFile: compose.yaml
+  pluginConfig:
+    cosmos:
+      client: cosmos-sdk
+      chainID: cosmos-localnet
+      daemonBinary: gaiad
+      minimumGasPrices: "0stake"
+      pruning: default
+      p2pPort: 26656
+      rpcPort: 26657
+      apiEnabled: true
+      apiPort: 1317
+      grpcEnabled: true
+      grpcPort: 9090
+  nodePools:
+    - name: validator
+      replicas: 1
+      roles: [validator]
+      template:
+        volumes:
+          - name: datadir
+            type: named
+          - name: configdir
+            type: named
+        workloads:
+          - name: gaiad
+            mode: container
+            image: ghcr.io/cosmos/gaia:v22.0.0
+            command: ["gaiad"]
+            args: ["start", "--home", "/var/lib/cosmos"]
+            ports:
+              - name: p2p
+                containerPort: 26656
+                hostPort: 26656
+              - name: rpc
+                containerPort: 26657
+                hostPort: 26657
+              - name: api
+                containerPort: 1317
+                hostPort: 1317
+              - name: grpc
+                containerPort: 9090
+                hostPort: 9090
+            volumeMounts:
+              - volume: datadir
+                path: /var/lib/cosmos
+              - volume: configdir
+                path: /etc/cosmos
+            restartPolicy: unless-stopped

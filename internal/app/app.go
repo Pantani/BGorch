@@ -30,18 +30,21 @@ type ApplyOptions struct {
 	OutputDir      string
 	DryRun         bool
 	ExecuteRuntime bool
+	RequireRuntime bool
 }
 
 // StatusOptions configures runtime observation behavior for status.
 type StatusOptions struct {
 	OutputDir      string
 	ObserveRuntime bool
+	RequireRuntime bool
 }
 
 // DoctorOptions configures runtime observation behavior for doctor.
 type DoctorOptions struct {
 	OutputDir      string
 	ObserveRuntime bool
+	RequireRuntime bool
 }
 
 // ApplyResult captures the deterministic apply outcome for CLI/JSON consumers.
@@ -159,7 +162,8 @@ func (a *App) Apply(ctx context.Context, specPath string, opts ApplyOptions) (re
 	if opts.OutputDir == "" {
 		opts.OutputDir = ".bgorch/render"
 	}
-	if opts.DryRun && opts.ExecuteRuntime {
+	executeRuntime := opts.ExecuteRuntime || opts.RequireRuntime
+	if opts.DryRun && executeRuntime {
 		return ApplyResult{}, nil, fmt.Errorf("--dry-run cannot be combined with runtime execution")
 	}
 
@@ -176,7 +180,7 @@ func (a *App) Apply(ctx context.Context, specPath string, opts ApplyOptions) (re
 		ClusterName:      cluster.Metadata.Name,
 		Backend:          desired.Backend,
 		DryRun:           opts.DryRun,
-		RuntimeRequested: opts.ExecuteRuntime,
+		RuntimeRequested: executeRuntime,
 	}
 
 	if HasErrors(diags) {
@@ -209,14 +213,20 @@ func (a *App) Apply(ctx context.Context, specPath string, opts ApplyOptions) (re
 		return result, diags, fmt.Errorf("write artifacts: %w", err)
 	}
 
-	if opts.ExecuteRuntime {
-		executor, ok := backendImpl.(backend.RuntimeExecutor)
+	var executor backend.RuntimeExecutor
+	if executeRuntime {
+		typedExecutor, ok := backendImpl.(backend.RuntimeExecutor)
 		if !ok {
-			return result, diags, fmt.Errorf(
-				"backend %q does not support runtime execution; rerun without runtime execution",
-				desired.Backend,
-			)
+			return result, diags, &RuntimeUnsupportedError{
+				Backend:    desired.Backend,
+				Capability: RuntimeCapabilityExecution,
+				Required:   opts.RequireRuntime,
+			}
 		}
+		executor = typedExecutor
+	}
+
+	if executeRuntime {
 		runtimeResult, execErr := executor.ExecuteRuntime(ctx, backend.RuntimeApplyRequest{
 			ClusterName: cluster.Metadata.Name,
 			OutputDir:   opts.OutputDir,
@@ -242,6 +252,7 @@ func (a *App) Status(ctx context.Context, specPath string, opts StatusOptions) (
 	if opts.OutputDir == "" {
 		opts.OutputDir = ".bgorch/render"
 	}
+	observeRuntime := opts.ObserveRuntime || opts.RequireRuntime
 
 	cluster, diags, err := a.ValidateSpec(specPath)
 	if err != nil {
@@ -253,7 +264,7 @@ func (a *App) Status(ctx context.Context, specPath string, opts StatusOptions) (
 		Backend:                 strings.TrimSpace(cluster.Spec.Runtime.Backend),
 		SnapshotPath:            a.stateStore.SnapshotPath(cluster.Metadata.Name, strings.TrimSpace(cluster.Spec.Runtime.Backend)),
 		Observations:            make([]string, 0),
-		RuntimeObserveRequested: opts.ObserveRuntime,
+		RuntimeObserveRequested: observeRuntime,
 	}
 
 	if HasErrors(diags) {
@@ -291,15 +302,25 @@ func (a *App) Status(ctx context.Context, specPath string, opts StatusOptions) (
 		result.Observations = append(result.Observations, fmt.Sprintf("%d change(s) detected between desired state and local snapshot", changes))
 	}
 
-	if opts.ObserveRuntime {
+	if observeRuntime {
 		_, backendImpl, resolveDiags := a.resolve(cluster)
 		if HasErrors(resolveDiags) {
+			if opts.RequireRuntime {
+				return result, diags, fmt.Errorf("runtime observation required but backend resolution failed")
+			}
 			result.RuntimeObservationError = "runtime observation skipped: backend resolution failed"
 			result.Observations = append(result.Observations, result.RuntimeObservationError)
 			return result, diags, nil
 		}
 		observer, ok := backendImpl.(backend.RuntimeObserver)
 		if !ok {
+			if opts.RequireRuntime {
+				return result, diags, &RuntimeUnsupportedError{
+					Backend:    desired.Backend,
+					Capability: RuntimeCapabilityObservation,
+					Required:   true,
+				}
+			}
 			result.RuntimeObservationError = fmt.Sprintf("backend %q does not support runtime observation", desired.Backend)
 			result.Observations = append(result.Observations, result.RuntimeObservationError)
 			return result, diags, nil
@@ -311,6 +332,9 @@ func (a *App) Status(ctx context.Context, specPath string, opts StatusOptions) (
 			Desired:     desired,
 		})
 		if observeErr != nil {
+			if opts.RequireRuntime {
+				return result, diags, fmt.Errorf("runtime observation required but failed: %w", observeErr)
+			}
 			// Status remains usable in local-state mode even when runtime observation fails.
 			result.RuntimeObservationError = observeErr.Error()
 			result.Observations = append(result.Observations, "runtime observation failed: "+observeErr.Error())
@@ -328,6 +352,7 @@ func (a *App) Doctor(ctx context.Context, specPath string, opts DoctorOptions) (
 	if opts.OutputDir == "" {
 		opts.OutputDir = ".bgorch/render"
 	}
+	observeRuntime := opts.ObserveRuntime || opts.RequireRuntime
 
 	report := doctor.NewReport()
 
@@ -393,26 +418,39 @@ func (a *App) Doctor(ctx context.Context, specPath string, opts DoctorOptions) (
 	}
 	if snap == nil {
 		report.Add("state.snapshot", doctor.StatusWarn, "no local snapshot found", "run apply to persist desired state")
-		return report, nil
-	}
-	report.Add("state.snapshot", doctor.StatusPass, fmt.Sprintf("snapshot loaded (%s)", snap.UpdatedAt.Format(time.RFC3339)), "")
-
-	p := planner.Build(desired, snap)
-	changes := nonNoopChanges(p)
-	if changes == 0 {
-		report.Add("plan.drift", doctor.StatusPass, "no drift detected against local snapshot", "")
+		if !observeRuntime {
+			return report, nil
+		}
 	} else {
-		report.Add("plan.drift", doctor.StatusWarn, fmt.Sprintf("%d change(s) detected between desired and snapshot", changes), "run plan/apply to reconcile")
+		report.Add("state.snapshot", doctor.StatusPass, fmt.Sprintf("snapshot loaded (%s)", snap.UpdatedAt.Format(time.RFC3339)), "")
+
+		p := planner.Build(desired, snap)
+		changes := nonNoopChanges(p)
+		if changes == 0 {
+			report.Add("plan.drift", doctor.StatusPass, "no drift detected against local snapshot", "")
+		} else {
+			report.Add("plan.drift", doctor.StatusWarn, fmt.Sprintf("%d change(s) detected between desired and snapshot", changes), "run plan/apply to reconcile")
+		}
 	}
 
-	if opts.ObserveRuntime {
+	if observeRuntime {
 		_, backendImpl, resolveDiags := a.resolve(cluster)
 		if HasErrors(resolveDiags) {
+			if opts.RequireRuntime {
+				return report, fmt.Errorf("runtime observation required but backend resolution failed")
+			}
 			report.Add("runtime.observe", doctor.StatusWarn, "runtime observation skipped because backend resolution failed", "run validate and fix backend resolution issues")
 			return report, nil
 		}
 		observer, ok := backendImpl.(backend.RuntimeObserver)
 		if !ok {
+			if opts.RequireRuntime {
+				return report, &RuntimeUnsupportedError{
+					Backend:    desired.Backend,
+					Capability: RuntimeCapabilityObservation,
+					Required:   true,
+				}
+			}
 			report.Add(
 				"runtime.observe",
 				doctor.StatusWarn,
@@ -428,6 +466,9 @@ func (a *App) Doctor(ctx context.Context, specPath string, opts DoctorOptions) (
 			Desired:     desired,
 		})
 		if observeErr != nil {
+			if opts.RequireRuntime {
+				return report, fmt.Errorf("runtime observation required but failed: %w", observeErr)
+			}
 			// Doctor intentionally degrades to warning to preserve troubleshooting output.
 			report.Add(
 				"runtime.observe",

@@ -48,6 +48,38 @@ var builtinProfiles = []Profile{
 		Backend:       "docker-compose",
 		IntendedUsers: "Blockchain operator",
 	},
+	{
+		Name:          "ethereum-rpc",
+		Summary:       "EVM execution client starter (geth/erigon/nethermind/besu/reth).",
+		Family:        "evm",
+		Plugin:        "evm-family",
+		Backend:       "docker-compose",
+		IntendedUsers: "EVM node operator",
+	},
+	{
+		Name:          "solana-rpc",
+		Summary:       "Solana validator/RPC starter (agave or jito).",
+		Family:        "solana",
+		Plugin:        "solana-family",
+		Backend:       "docker-compose",
+		IntendedUsers: "Solana node operator",
+	},
+	{
+		Name:          "bitcoin-node",
+		Summary:       "Bitcoin full node starter (bitcoin-core or btcd).",
+		Family:        "bitcoin",
+		Plugin:        "bitcoin-family",
+		Backend:       "docker-compose",
+		IntendedUsers: "Bitcoin node operator",
+	},
+	{
+		Name:          "cosmos-validator",
+		Summary:       "Cosmos-SDK validator/RPC starter with typed chain knobs.",
+		Family:        "cosmos",
+		Plugin:        "cosmos-family",
+		Backend:       "docker-compose",
+		IntendedUsers: "Cosmos operator",
+	},
 }
 
 // Profiles returns built-in onboarding profiles.

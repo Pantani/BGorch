@@ -28,7 +28,7 @@ This keeps chain semantics out of the backend layer and runtime details out of t
 | Backend `ssh-systemd` | Implemented | Host-mode validation + systemd/env/layout render + optional runtime preflight/observation. |
 | `ssh-systemd` runtime exec/observe | Implemented (preflight-gated) | Uses `ssh` + `systemctl`, requires targets/artifacts and explicit runtime flags. |
 | Typed `pluginConfig.cometBFT` | Implemented | CometBFT plugin consumes typed config with scope precedence (cluster -> node -> workload). |
-| Backend `kubernetes` | Implemented (artifact mode) | Deterministic render for Service/StatefulSet/PVC manifests. |
+| Backend `kubernetes` | Implemented (artifact + runtime observe) | Deterministic render for Service/StatefulSet/PVC manifests + `kubectl` runtime observation. |
 | Terraform adapter | Implemented (artifact mode) | Deterministic scaffold (`main.tf`, `variables.tf`, `outputs.tf`, `tfvars`). |
 | Ansible adapter | Implemented (artifact mode) | Deterministic inventory/group_vars/playbook bootstrap render. |
 
@@ -55,7 +55,8 @@ This keeps chain semantics out of the backend layer and runtime details out of t
 - no distributed reconciliation loop;
 - no distributed lock/state backend yet;
 - runtime operations are synchronous and command-driven (no controller loop);
-- `kubernetes`, `terraform`, and `ansible` do not implement runtime exec/observe capability in current MVP;
+- `kubernetes` currently supports runtime observe only (no runtime exec);
+- `terraform` and `ansible` do not implement runtime exec/observe capability in current MVP;
 - several schema fields are modeled in API types but not yet consumed end-to-end by backends.
 
 ## Decision References

@@ -1,0 +1,61 @@
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: solana-rpc
+spec:
+  family: solana
+  plugin: solana-family
+  profile: solana-rpc
+  runtime:
+    backend: docker-compose
+    backendConfig:
+      compose:
+        projectName: solana-rpc
+        outputFile: compose.yaml
+  pluginConfig:
+    solana:
+      client: agave
+      cluster: mainnet-beta
+      rpcPort: 8899
+      wsPort: 8900
+      gossipPort: 8001
+      dynamicPortRange: 8000-8020
+      fullRPC: true
+      privateRPC: false
+      noVoting: true
+      entryPoints:
+        - entrypoint.mainnet-beta.solana.com:8001
+  nodePools:
+    - name: rpc
+      replicas: 1
+      roles: [rpc]
+      template:
+        volumes:
+          - name: ledger
+            type: named
+        workloads:
+          - name: solana-validator
+            mode: container
+            image: solanalabs/solana:v1.18.26
+            command: ["solana-validator"]
+            args:
+              - "--ledger=/var/lib/solana/ledger"
+              - "--rpc-port=8899"
+              - "--dynamic-port-range=8000-8020"
+              - "--entrypoint=entrypoint.mainnet-beta.solana.com:8001"
+              - "--full-rpc-api"
+              - "--no-voting"
+            ports:
+              - name: gossip
+                containerPort: 8001
+                hostPort: 8001
+              - name: rpc
+                containerPort: 8899
+                hostPort: 8899
+              - name: ws
+                containerPort: 8900
+                hostPort: 8900
+            volumeMounts:
+              - volume: ledger
+                path: /var/lib/solana/ledger
+            restartPolicy: unless-stopped

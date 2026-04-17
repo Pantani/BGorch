@@ -41,7 +41,7 @@ var docs = map[string]Doc{
 		Summary:     "Desired state for chain family, runtime, and lifecycle policies.",
 		Description: "spec selects the chain family/plugin, backend runtime, node pools, and typed extension blocks.",
 		Fields: []FieldDoc{
-			{Name: "family", Type: "string", Required: true, Description: "Logical blockchain family identifier (generic, cometbft, ...)."},
+			{Name: "family", Type: "string", Required: true, Description: "Logical blockchain family identifier (generic, cometbft, evm, solana, bitcoin, cosmos, ...)."},
 			{Name: "plugin", Type: "string", Required: true, Description: "Plugin implementation name for family behavior."},
 			{Name: "profile", Type: "string", Required: false, Description: "Optional profile preset name for onboarding/discovery."},
 			{Name: "runtime", Type: "RuntimeSpec", Required: true, Description: "Backend and backend-specific settings."},
@@ -62,7 +62,7 @@ var docs = map[string]Doc{
 			{Name: "target", Type: "string", Required: false, Description: "Optional target selector for remote backends."},
 			{Name: "backendConfig", Type: "BackendConfig", Required: false, Description: "Typed backend extension block."},
 		},
-		SeeAlso: []string{"plugin generic-process", "plugin cometbft-family"},
+		SeeAlso: []string{"plugin generic-process", "plugin cometbft-family", "plugin evm-family", "plugin solana-family", "plugin bitcoin-family", "plugin cosmos-family"},
 	},
 	"chaincluster.spec.nodepools": {
 		Path:        "ChainCluster.spec.nodePools",

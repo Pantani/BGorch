@@ -2,7 +2,11 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,12 +25,38 @@ const (
 	defaultStorageSize  = "20Gi"
 )
 
-type Backend struct{}
+type Runner interface {
+	Run(ctx context.Context, dir, name string, args ...string) (string, error)
+}
+
+type osCommandRunner struct{}
+
+func (r osCommandRunner) Run(ctx context.Context, dir, name string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(out), fmt.Errorf("%s: %w", strings.Join(append([]string{name}, args...), " "), err)
+	}
+	return string(out), nil
+}
+
+type Backend struct {
+	runner Runner
+}
 
 var _ backend.Backend = (*Backend)(nil)
+var _ backend.RuntimeObserver = (*Backend)(nil)
 
 func New() *Backend {
-	return &Backend{}
+	return NewWithRunner(osCommandRunner{})
+}
+
+func NewWithRunner(r Runner) *Backend {
+	if r == nil {
+		r = osCommandRunner{}
+	}
+	return &Backend{runner: r}
 }
 
 func (b *Backend) Name() string {
@@ -222,6 +252,79 @@ func (b *Backend) BuildDesired(ctx context.Context, c *v1alpha1.ChainCluster, pl
 	sort.Slice(desired.Artifacts, func(i, j int) bool { return desired.Artifacts[i].Path < desired.Artifacts[j].Path })
 
 	return desired, nil
+}
+
+func (b *Backend) ObserveRuntime(ctx context.Context, req backend.RuntimeObserveRequest) (backend.RuntimeObserveResult, error) {
+	clusterName := runtimeClusterName(req)
+	if clusterName == "" {
+		return backend.RuntimeObserveResult{}, fmt.Errorf(
+			"cluster name is required for kubernetes runtime observation; pass --cluster-name or render desired state first",
+		)
+	}
+
+	manifestRel := runtimeManifestPath(req.Desired)
+	manifestAbs := filepath.Join(req.OutputDir, manifestRel)
+	if err := ensureRuntimeManifest(manifestAbs); err != nil {
+		return backend.RuntimeObserveResult{}, err
+	}
+
+	namespace := runtimeNamespace(req.Desired)
+	selector := "chainops.io/cluster=" + clusterName
+
+	podArgs := []string{
+		"get", "pods",
+		"-n", namespace,
+		"-l", selector,
+		"-o", "custom-columns=NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready,RESTARTS:.status.containerStatuses[*].restartCount",
+		"--no-headers",
+	}
+	podOut, err := b.runner.Run(ctx, req.OutputDir, "kubectl", podArgs...)
+	if err != nil {
+		return backend.RuntimeObserveResult{}, runtimeCommandError("runtime observe pods", "kubectl", podArgs, podOut, err)
+	}
+
+	serviceArgs := []string{
+		"get", "services",
+		"-n", namespace,
+		"-l", selector,
+		"-o", "custom-columns=NAME:.metadata.name,TYPE:.spec.type,CLUSTER-IP:.spec.clusterIP,PORTS:.spec.ports[*].port",
+		"--no-headers",
+	}
+	serviceOut, err := b.runner.Run(ctx, req.OutputDir, "kubectl", serviceArgs...)
+	if err != nil {
+		return backend.RuntimeObserveResult{}, runtimeCommandError("runtime observe services", "kubectl", serviceArgs, serviceOut, err)
+	}
+
+	podLines := compactLines(podOut)
+	serviceLines := compactLines(serviceOut)
+	details := make([]string, 0, 2+len(podLines)+len(serviceLines))
+	details = append(details, "namespace: "+namespace)
+	details = append(details, "selector: "+selector)
+	if len(podLines) == 0 {
+		details = append(details, "pod: <none>")
+	} else {
+		for _, line := range podLines {
+			details = append(details, "pod: "+line)
+		}
+	}
+	if len(serviceLines) == 0 {
+		details = append(details, "service: <none>")
+	} else {
+		for _, line := range serviceLines {
+			details = append(details, "service: "+line)
+		}
+	}
+
+	return backend.RuntimeObserveResult{
+		Summary: fmt.Sprintf(
+			"observed kubernetes runtime for cluster %q in namespace %q (pods=%d, services=%d)",
+			clusterName,
+			namespace,
+			len(podLines),
+			len(serviceLines),
+		),
+		Details: details,
+	}, nil
 }
 
 type workloadResource struct {
@@ -473,7 +576,7 @@ func sanitizeName(s string) string {
 	repl := strings.NewReplacer(" ", "-", "/", "-", "_", "-", ".", "-", ":", "-")
 	s = repl.Replace(s)
 	parts := strings.FieldsFunc(s, func(r rune) bool {
-		return !(r == '-' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+		return r != '-' && (r < 'a' || r > 'z') && (r < '0' || r > '9')
 	})
 	s = strings.Join(parts, "-")
 	s = strings.Trim(s, "-")
@@ -485,4 +588,89 @@ func sanitizeName(s string) string {
 
 func quote(v string) string {
 	return strconv.Quote(v)
+}
+
+func runtimeNamespace(desired domain.DesiredState) string {
+	if desired.Metadata == nil {
+		return defaultNamespace
+	}
+	namespace := strings.TrimSpace(desired.Metadata["kubernetes.namespace"])
+	if namespace == "" {
+		return defaultNamespace
+	}
+	return namespace
+}
+
+func runtimeManifestPath(desired domain.DesiredState) string {
+	if desired.Metadata == nil {
+		return defaultManifestFile
+	}
+	manifest := strings.TrimSpace(desired.Metadata["kubernetes.file"])
+	if manifest == "" {
+		return defaultManifestFile
+	}
+	return manifest
+}
+
+func runtimeClusterName(req backend.RuntimeObserveRequest) string {
+	if clusterName := strings.TrimSpace(req.ClusterName); clusterName != "" {
+		return clusterName
+	}
+	return strings.TrimSpace(req.Desired.ClusterName)
+}
+
+func ensureRuntimeManifest(manifestPath string) error {
+	if _, err := os.Stat(manifestPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf(
+				"kubernetes manifest not found at %s; run render/apply first or pass the correct --output-dir",
+				manifestPath,
+			)
+		}
+		return fmt.Errorf("check kubernetes manifest at %s: %w", manifestPath, err)
+	}
+	return nil
+}
+
+func runtimeCommandError(op, name string, args []string, out string, err error) error {
+	command := strings.Join(append([]string{name}, args...), " ")
+	lowerOut := strings.ToLower(out)
+
+	if errors.Is(err, exec.ErrNotFound) || strings.Contains(strings.ToLower(err.Error()), "executable file not found") {
+		return fmt.Errorf("%s failed: kubectl not found; install kubectl and ensure it is in PATH", op)
+	}
+	if strings.Contains(lowerOut, "no configuration has been provided") ||
+		strings.Contains(lowerOut, "current-context is not set") ||
+		strings.Contains(lowerOut, "the connection to the server") ||
+		strings.Contains(lowerOut, "couldn't get current server api group list") {
+		return fmt.Errorf("%s failed: kubectl cannot reach cluster; verify kubeconfig/context and cluster availability", op)
+	}
+
+	trimmed := truncateOutput(strings.TrimSpace(out))
+	if trimmed == "" {
+		return fmt.Errorf("%s failed: %w (command: %s)", op, err, command)
+	}
+	return fmt.Errorf("%s failed: %w (command: %s, output: %s)", op, err, command, trimmed)
+}
+
+func truncateOutput(out string) string {
+	const maxLen = 4096
+	out = strings.TrimSpace(out)
+	if len(out) <= maxLen {
+		return out
+	}
+	return out[:maxLen] + "...(truncated)"
+}
+
+func compactLines(out string) []string {
+	lines := strings.Split(out, "\n")
+	compact := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		compact = append(compact, line)
+	}
+	return compact
 }

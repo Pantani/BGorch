@@ -57,8 +57,12 @@ Comandos:
 
 - `plan --out <plan.json|plan.yaml>`
 - `apply [plan-file]`
+- `apply --runtime-exec`
+- `apply --require-runtime` (implica runtime-exec e falha se runtime não estiver disponível)
 - `status --observe-runtime`
+- `status --require-runtime` (implica observe-runtime e falha se runtime não estiver disponível)
 - `doctor --observe-runtime`
+- `doctor --require-runtime` (implica observe-runtime e falha se runtime não estiver disponível)
 - `render --write-artifacts`
 
 ## Render Modes
@@ -100,6 +104,17 @@ chainops plan -f chainops.yaml --out plan.json
 
 ```bash
 chainops apply plan.json --yes
+```
+
+### Strict Runtime Mode
+
+```bash
+# apply exige e executa runtime
+chainops apply -f chainops.yaml --require-runtime --yes
+
+# status/doctor exigem observação de runtime
+chainops status -f chainops.yaml --require-runtime
+chainops doctor -f chainops.yaml --require-runtime
 ```
 
 ## Explain Examples

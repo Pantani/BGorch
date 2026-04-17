@@ -13,10 +13,13 @@ This guide reflects the current implementation in the repository.
 | `apply -f <spec>` | Yes | Lock + plan + artifact write + snapshot save. |
 | `apply --dry-run` | Yes | Computes plan under lock, no writes. |
 | `apply --runtime-exec` | Yes (backend-gated) | Executes backend runtime operation after successful render. |
+| `apply --require-runtime` | Yes | Implies runtime execution and fails when backend/runtime prerequisites are unavailable. |
 | `status -f <spec>` | Yes | Desired vs snapshot summary. |
 | `status --observe-runtime` | Yes (backend-gated) | Runs runtime observe when backend supports it and prerequisites are met. |
+| `status --require-runtime` | Yes | Implies runtime observation and fails when backend/runtime prerequisites are unavailable. |
 | `doctor -f <spec>` | Yes | Aggregated operational checks. |
 | `doctor --observe-runtime` | Yes (backend-gated) | Adds runtime observe check when backend supports it and prerequisites are met. |
+| `doctor --require-runtime` | Yes | Implies runtime observation and fails when backend/runtime prerequisites are unavailable. |
 
 ## Recommended Flow
 
@@ -53,6 +56,7 @@ go run ./cmd/bgorch doctor -f examples/generic-single-ssh-systemd.yaml -o .bgorc
 - computes plan against snapshot;
 - writes artifacts unless `--dry-run`;
 - optionally executes backend runtime if `--runtime-exec` is set and backend supports it;
+- `--require-runtime` implies runtime execution and returns non-zero when capability/prerequisites are missing;
 - persists snapshot only after successful artifact write and optional runtime execution.
 
 ### `status`
@@ -60,11 +64,13 @@ go run ./cmd/bgorch doctor -f examples/generic-single-ssh-systemd.yaml -o .bgorc
 - validates spec and computes desired-vs-snapshot diff;
 - reports observations regardless of runtime availability;
 - runtime observation errors are surfaced as non-fatal fields/messages.
+- with `--require-runtime`, runtime observation is mandatory (`--observe-runtime` implied) and command fails on capability/preflight/runtime errors.
 
 ### `doctor`
 
 - emits `pass/warn/fail` checks for spec, registry resolution, state access, snapshot health, drift;
 - runtime observation is optional and warning-based on failure.
+- with `--require-runtime`, runtime observation is mandatory (`--observe-runtime` implied) and command fails on capability/preflight/runtime errors.
 
 ## Backend Capability Matrix
 
@@ -72,7 +78,7 @@ go run ./cmd/bgorch doctor -f examples/generic-single-ssh-systemd.yaml -o .bgorc
 |---|---|---|---|---|
 | `docker-compose` | Yes | Yes | Yes | Requires Docker/Compose and rendered compose file. |
 | `ssh-systemd` | Yes | Yes | Yes | Requires rendered artifacts, runtime targets, `ssh` binary and remote `systemctl`. |
-| `kubernetes` | Yes | No | No | Renders deterministic Service/StatefulSet/PVC manifests (`kubernetes/manifests.yaml`). |
+| `kubernetes` | Yes | No | Yes | Runtime observe via `kubectl get pods/services` usando label `chainops.io/cluster=<name>` e manifest renderizado. |
 | `terraform` | Yes | No | No | Renders deterministic infra adapter scaffold (`terraform/*.tf`, `terraform.tfvars.json`). |
 | `ansible` | Yes | No | No | Renders deterministic inventory/group vars/bootstrap playbook (`ansible/*`). |
 
@@ -134,5 +140,6 @@ Responsibilities:
 - snapshot/lock model is local filesystem based;
 - no distributed lock or shared state store;
 - runtime ops fail fast if backend preflight is not satisfied (for example: missing compose/ssh/systemctl, missing runtime targets, missing rendered artifacts);
-- `kubernetes`, `terraform`, and `ansible` do not expose runtime exec/observe capability yet;
+- `kubernetes` ainda não expõe runtime execution (`apply --runtime-exec/--require-runtime` falha por capability);
+- `terraform` e `ansible` ainda não expõem runtime exec/observe capability;
 - no asynchronous reconciliation loop/background workers.

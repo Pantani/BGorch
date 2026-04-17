@@ -1,0 +1,6 @@
+name: bitcoin-node
+summary: Bitcoin full node starter profile.
+family: bitcoin
+plugin: bitcoin-family
+backend: docker-compose
+recommended_for: bitcoin operators

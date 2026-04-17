@@ -61,10 +61,10 @@ chainops apply
 - `explain`: explica schema/campos/plugins/perfis.
 - `render`: exibe config canônica resolvida; também suporta render de artifacts.
 - `plan`: preview side-effect free; suporta `--out`.
-- `apply`: reconcilia desired state; suporta `apply <plan-file>`.
-- `status`: desired vs observed.
+- `apply`: reconcilia desired state; suporta `apply <plan-file>`, `--runtime-exec` e `--require-runtime`.
+- `status`: desired vs observed; suporta `--observe-runtime` e `--require-runtime`.
 - `logs`: detalhes de observação de runtime.
-- `doctor`: checks acionáveis de preflight/convergência.
+- `doctor`: checks acionáveis de preflight/convergência; suporta `--observe-runtime` e `--require-runtime`.
 - `destroy`: teardown local explícito (artifacts + snapshot).
 - `backup`/`restore`/`upgrade`: inspeção de policy (adapters runtime pendentes).
 - `plugin`, `profile`, `context`, `completion`, `version`.
@@ -81,6 +81,10 @@ Referência detalhada: [docs/reference/cli.md](docs/reference/cli.md).
 - `examples/generic-infra-terraform.yaml`
 - `examples/generic-bootstrap-ansible.yaml`
 - `examples/cometbft-single-validator.yaml`
+- `examples/evm-geth-rpc.yaml`
+- `examples/solana-rpc.yaml`
+- `examples/bitcoin-core-node.yaml`
+- `examples/cosmos-sdk-validator.yaml`
 
 ## Configuração e Precedência
 

@@ -788,9 +788,7 @@ func (m model) resultSummaryText() string {
 	for _, section := range m.result.Sections {
 		parts = append(parts, "")
 		parts = append(parts, m.styles.SectionTitle.Render(section.Title))
-		for _, line := range section.Lines {
-			parts = append(parts, line)
-		}
+		parts = append(parts, section.Lines...)
 	}
 
 	if m.result.Err != nil {

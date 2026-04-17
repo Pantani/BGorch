@@ -164,6 +164,104 @@ spec:
 	}
 }
 
+func TestClusterValidationWarnsEVMConfigOnNonEVMPlugin(t *testing.T) {
+	specYAML := `
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: test-chain
+spec:
+  family: generic
+  plugin: generic-process
+  runtime:
+    backend: docker-compose
+  pluginConfig:
+    evm:
+      client: geth
+  nodePools:
+    - name: rpc
+      replicas: 1
+      template:
+        volumes:
+          - name: datadir
+        workloads:
+          - name: node
+            mode: container
+            image: ghcr.io/example/node:v1
+            volumeMounts:
+              - volume: datadir
+                path: /var/lib/node
+`
+	c := mustParse(t, specYAML)
+	diags := Cluster(c)
+	if !containsDiagnostic(diags, "warning", "spec.pluginConfig.evm") {
+		t.Fatalf("expected warning for evm config on non-evm plugin, got %v", diags)
+	}
+}
+
+func TestClusterValidationValidatesNewFamilyTypedConfigs(t *testing.T) {
+	specYAML := `
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: multichain
+spec:
+  family: evm
+  plugin: evm-family
+  runtime:
+    backend: docker-compose
+  pluginConfig:
+    evm:
+      client: unknown
+      network: unknown
+      syncMode: unknown
+      p2pPort: 70000
+      chainID: -1
+  nodePools:
+    - name: node
+      replicas: 1
+      template:
+        workloads:
+          - name: geth
+            mode: container
+            image: ethereum/client-go:v1.14.13
+            pluginConfig:
+              solana:
+                dynamicPortRange: invalid
+              bitcoin:
+                network: unknown
+              cosmos:
+                chainID: "bad id"
+`
+	c := mustParse(t, specYAML)
+	diags := Cluster(c)
+
+	if !containsDiagnostic(diags, "error", "spec.pluginConfig.evm.client") {
+		t.Fatalf("expected evm client validation error, got %v", diags)
+	}
+	if !containsDiagnostic(diags, "error", "spec.pluginConfig.evm.network") {
+		t.Fatalf("expected evm network validation error, got %v", diags)
+	}
+	if !containsDiagnostic(diags, "error", "spec.pluginConfig.evm.syncMode") {
+		t.Fatalf("expected evm sync mode validation error, got %v", diags)
+	}
+	if !containsDiagnostic(diags, "error", "spec.pluginConfig.evm.p2pPort") {
+		t.Fatalf("expected evm port validation error, got %v", diags)
+	}
+	if !containsDiagnostic(diags, "error", "spec.pluginConfig.evm.chainID") {
+		t.Fatalf("expected evm chainID validation error, got %v", diags)
+	}
+	if !containsDiagnostic(diags, "warning", "spec.nodePools[0].template.workloads[0].pluginConfig.solana") {
+		t.Fatalf("expected warning for solana config on evm plugin, got %v", diags)
+	}
+	if !containsDiagnostic(diags, "warning", "spec.nodePools[0].template.workloads[0].pluginConfig.bitcoin") {
+		t.Fatalf("expected warning for bitcoin config on evm plugin, got %v", diags)
+	}
+	if !containsDiagnostic(diags, "warning", "spec.nodePools[0].template.workloads[0].pluginConfig.cosmos") {
+		t.Fatalf("expected warning for cosmos config on evm plugin, got %v", diags)
+	}
+}
+
 func mustParse(t *testing.T, raw string) *v1alpha1.ChainCluster {
 	t.Helper()
 	var c v1alpha1.ChainCluster

@@ -47,6 +47,32 @@ func runtimeError(err error) error {
 	return &exitError{code: 1, err: err}
 }
 
+func wrapRuntimeUnsupportedError(program, command, specPath string, err error) error {
+	var unsupportedErr *app.RuntimeUnsupportedError
+	if !errors.As(err, &unsupportedErr) {
+		return err
+	}
+
+	switch unsupportedErr.Capability {
+	case app.RuntimeCapabilityExecution:
+		return output.ActionableError(
+			"Runtime execution is unavailable for this backend.",
+			err.Error(),
+			"Use a backend with runtime execution support (docker-compose or ssh-systemd), or rerun without --runtime-exec/--require-runtime.",
+			fmt.Sprintf("%s apply -f %s --yes", program, specPath),
+		)
+	case app.RuntimeCapabilityObservation:
+		return output.ActionableError(
+			"Runtime observation is unavailable for this backend.",
+			err.Error(),
+			"Use a backend with runtime observation support (docker-compose or ssh-systemd), or rerun without --require-runtime.",
+			fmt.Sprintf("%s %s -f %s", program, command, specPath),
+		)
+	default:
+		return err
+	}
+}
+
 type runtimeContext struct {
 	program          string
 	legacy           bool
@@ -767,19 +793,22 @@ func newApplyCmd(c *runtimeContext) *cobra.Command {
 		Example: `  chainops apply -f chainops.yaml --yes
   chainops apply -f chainops.yaml --dry-run
   chainops apply -f chainops.yaml --runtime-exec --yes
+  chainops apply -f chainops.yaml --require-runtime --yes
   chainops apply plan.json --yes`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			runtimeExec, _ := cmd.Flags().GetBool("runtime-exec")
+			requireRuntime, _ := cmd.Flags().GetBool("require-runtime")
+			executeRuntime := runtimeExec || requireRuntime
 			format, legacyArtifactsDir, err := c.resolveOutputWithLegacyPath(cmd, "table")
 			if err != nil {
 				return usageError(err)
 			}
-			if dryRun && runtimeExec {
+			if dryRun && executeRuntime {
 				return usageError(output.ActionableError(
 					"Invalid flag combination.",
-					"--dry-run cannot be combined with --runtime-exec.",
+					"--dry-run cannot be combined with --runtime-exec or --require-runtime.",
 					"Remove one of the flags.",
 					fmt.Sprintf("%s apply -f chainops.yaml --dry-run", c.program),
 				))
@@ -811,7 +840,7 @@ func newApplyCmd(c *runtimeContext) *cobra.Command {
 
 			if !dryRun {
 				action := "apply desired state"
-				if runtimeExec {
+				if executeRuntime {
 					action = "apply desired state and execute runtime actions"
 				}
 				if err := c.requireConfirmation(cmd, action); err != nil {
@@ -831,9 +860,10 @@ func newApplyCmd(c *runtimeContext) *cobra.Command {
 				OutputDir:      artifactsDir,
 				DryRun:         dryRun,
 				ExecuteRuntime: runtimeExec,
+				RequireRuntime: requireRuntime,
 			})
 			if applyErr != nil {
-				return runtimeError(applyErr)
+				return runtimeError(wrapRuntimeUnsupportedError(c.program, "apply", specPath, applyErr))
 			}
 			c.printDiagnostics(applyDiags)
 			if hasErrors(applyDiags) {
@@ -883,6 +913,7 @@ func newApplyCmd(c *runtimeContext) *cobra.Command {
 	cmd.Flags().StringP("output", "o", "", "Output format: table|json|yaml.")
 	cmd.Flags().Bool("dry-run", false, "Plan + validate without writing artifacts/snapshot.")
 	cmd.Flags().Bool("runtime-exec", false, "Execute backend runtime actions after artifact render.")
+	cmd.Flags().Bool("require-runtime", false, "Require runtime execution support and execute runtime actions.")
 	cmd.Flags().String("output-dir", "", "Legacy alias for --artifacts-dir.")
 
 	return cmd
@@ -920,6 +951,7 @@ func newStatusCmd(c *runtimeContext) *cobra.Command {
 		Long:  "Status compares desired state against snapshot and can optionally inspect runtime state.",
 		Example: `  chainops status -f chainops.yaml
   chainops status -f chainops.yaml --observe-runtime
+  chainops status -f chainops.yaml --require-runtime
   chainops status -f chainops.yaml --output json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			specPath, err := c.resolveSpecPath(cmd)
@@ -931,6 +963,7 @@ func newStatusCmd(c *runtimeContext) *cobra.Command {
 				return usageError(err)
 			}
 			observeRuntime, _ := cmd.Flags().GetBool("observe-runtime")
+			requireRuntime, _ := cmd.Flags().GetBool("require-runtime")
 			artifactsDir, err := c.resolveArtifactsDir(cmd)
 			if err != nil {
 				return err
@@ -942,9 +975,10 @@ func newStatusCmd(c *runtimeContext) *cobra.Command {
 			result, diags, statusErr := c.engine.Status(context.Background(), specPath, app.StatusOptions{
 				OutputDir:      artifactsDir,
 				ObserveRuntime: observeRuntime,
+				RequireRuntime: requireRuntime,
 			})
 			if statusErr != nil {
-				return runtimeError(statusErr)
+				return runtimeError(wrapRuntimeUnsupportedError(c.program, "status", specPath, statusErr))
 			}
 			c.printDiagnostics(diags)
 			if hasErrors(diags) {
@@ -1031,6 +1065,7 @@ func newStatusCmd(c *runtimeContext) *cobra.Command {
 	}
 	cmd.Flags().StringP("output", "o", "", "Output format: table|json|yaml.")
 	cmd.Flags().Bool("observe-runtime", false, "Query runtime backend when supported.")
+	cmd.Flags().Bool("require-runtime", false, "Require runtime observation support (implies --observe-runtime).")
 	cmd.Flags().String("output-dir", "", "Legacy alias for --artifacts-dir.")
 	return cmd
 }
@@ -1116,6 +1151,7 @@ func newDoctorCmd(c *runtimeContext) *cobra.Command {
 		Long:  "doctor reports pass/warn/fail checks with hints for configuration and runtime readiness.",
 		Example: `  chainops doctor -f chainops.yaml
   chainops doctor -f chainops.yaml --observe-runtime
+  chainops doctor -f chainops.yaml --require-runtime
   chainops doctor -f chainops.yaml --output json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			specPath, err := c.resolveSpecPath(cmd)
@@ -1127,6 +1163,7 @@ func newDoctorCmd(c *runtimeContext) *cobra.Command {
 				return usageError(err)
 			}
 			observeRuntime, _ := cmd.Flags().GetBool("observe-runtime")
+			requireRuntime, _ := cmd.Flags().GetBool("require-runtime")
 			artifactsDir, err := c.resolveArtifactsDir(cmd)
 			if err != nil {
 				return err
@@ -1138,9 +1175,10 @@ func newDoctorCmd(c *runtimeContext) *cobra.Command {
 			report, doctorErr := c.engine.Doctor(context.Background(), specPath, app.DoctorOptions{
 				OutputDir:      artifactsDir,
 				ObserveRuntime: observeRuntime,
+				RequireRuntime: requireRuntime,
 			})
 			if doctorErr != nil {
-				return runtimeError(doctorErr)
+				return runtimeError(wrapRuntimeUnsupportedError(c.program, "doctor", specPath, doctorErr))
 			}
 
 			if format == output.FormatTable {
@@ -1184,6 +1222,7 @@ func newDoctorCmd(c *runtimeContext) *cobra.Command {
 	}
 	cmd.Flags().StringP("output", "o", "", "Output format: table|json|yaml.")
 	cmd.Flags().Bool("observe-runtime", false, "Query runtime backend when supported.")
+	cmd.Flags().Bool("require-runtime", false, "Require runtime observation support (implies --observe-runtime).")
 	cmd.Flags().String("output-dir", "", "Legacy alias for --artifacts-dir.")
 	return cmd
 }

@@ -1,0 +1,6 @@
+name: cosmos-validator
+summary: Cosmos-SDK validator or RPC starter profile.
+family: cosmos
+plugin: cosmos-family
+backend: docker-compose
+recommended_for: cosmos operators

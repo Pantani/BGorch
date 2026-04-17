@@ -1,0 +1,53 @@
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: bitcoin-core
+spec:
+  family: bitcoin
+  plugin: bitcoin-family
+  profile: bitcoin-node
+  runtime:
+    backend: docker-compose
+    backendConfig:
+      compose:
+        projectName: bitcoin-core
+        outputFile: compose.yaml
+  pluginConfig:
+    bitcoin:
+      client: bitcoin-core
+      network: signet
+      txIndex: true
+      pruneMB: 0
+      rpcPort: 38332
+      p2pPort: 38333
+  nodePools:
+    - name: fullnode
+      replicas: 1
+      roles: [full]
+      template:
+        volumes:
+          - name: datadir
+            type: named
+          - name: confdir
+            type: named
+        workloads:
+          - name: bitcoind
+            mode: container
+            image: ruimarinho/bitcoin-core:27
+            command: ["bitcoind"]
+            args:
+              - "-conf=/etc/bitcoin/bitcoin.conf"
+              - "-datadir=/var/lib/bitcoin"
+            ports:
+              - name: p2p
+                containerPort: 38333
+                hostPort: 38333
+              - name: rpc
+                containerPort: 38332
+                hostPort: 38332
+            volumeMounts:
+              - volume: datadir
+                path: /var/lib/bitcoin
+              - volume: confdir
+                path: /etc/bitcoin
+            restartPolicy: unless-stopped

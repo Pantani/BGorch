@@ -203,6 +203,91 @@ func TestApplyRuntimeExecutionWithComposeRunner(t *testing.T) {
 	}
 }
 
+func TestApplyRequireRuntimeImpliesExecution(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	outDir := filepath.Join(baseDir, "out")
+	specPath := writeSpecFile(t, baseDir, "require-runtime-cluster")
+
+	runner := &fakeComposeRunner{output: "containers started"}
+	reg := registry.New()
+	reg.MustRegisterPlugin(genericprocess.New())
+	reg.MustRegisterBackend(compose.NewWithRunner(runner))
+
+	application := New(Options{StateDir: stateDir, Registries: reg})
+	result, diags, err := application.Apply(context.Background(), specPath, ApplyOptions{
+		OutputDir:      outDir,
+		RequireRuntime: true,
+	})
+	if err != nil {
+		t.Fatalf("apply with require runtime failed: %v", err)
+	}
+	if HasErrors(diags) {
+		t.Fatalf("unexpected diagnostics with errors: %#v", diags)
+	}
+	if !result.RuntimeRequested {
+		t.Fatalf("expected runtime request when require-runtime is set")
+	}
+	if result.RuntimeResult == nil {
+		t.Fatalf("expected runtime result to be present")
+	}
+	if len(runner.calls) != 1 {
+		t.Fatalf("expected one runtime command, got %d", len(runner.calls))
+	}
+}
+
+func TestApplyRequireRuntimeRejectsDryRun(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	outDir := filepath.Join(baseDir, "out")
+	specPath := writeSpecFile(t, baseDir, "require-runtime-dryrun")
+
+	application := New(Options{StateDir: stateDir})
+	_, _, err := application.Apply(context.Background(), specPath, ApplyOptions{
+		OutputDir:      outDir,
+		DryRun:         true,
+		RequireRuntime: true,
+	})
+	if err == nil {
+		t.Fatalf("expected dry-run/runtime conflict error")
+	}
+	if !strings.Contains(err.Error(), "--dry-run cannot be combined with runtime execution") {
+		t.Fatalf("unexpected conflict error: %v", err)
+	}
+}
+
+func TestApplyRequireRuntimeFailsWithoutExecutionSupport(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	outDir := filepath.Join(baseDir, "out")
+	specPath := writeSpecFileWithBackend(t, baseDir, "require-runtime-unsupported-apply", "terraform")
+
+	application := New(Options{StateDir: stateDir})
+	_, _, err := application.Apply(context.Background(), specPath, ApplyOptions{
+		OutputDir:      outDir,
+		RequireRuntime: true,
+	})
+	if err == nil {
+		t.Fatalf("expected runtime unsupported error")
+	}
+	var unsupportedErr *RuntimeUnsupportedError
+	if !errors.As(err, &unsupportedErr) {
+		t.Fatalf("expected RuntimeUnsupportedError, got %T", err)
+	}
+	if unsupportedErr.Capability != RuntimeCapabilityExecution {
+		t.Fatalf("expected execution capability error, got %q", unsupportedErr.Capability)
+	}
+	if !unsupportedErr.Required {
+		t.Fatalf("expected required runtime error")
+	}
+}
+
 func TestApplyRuntimeExecutionFailureDoesNotPersistSnapshot(t *testing.T) {
 	t.Parallel()
 
@@ -287,6 +372,209 @@ func TestStatusAndDoctorObserveRuntimeFallback(t *testing.T) {
 	}
 }
 
+func TestStatusRequireRuntimeFailsWhenObservationFails(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	outDir := filepath.Join(baseDir, "out")
+	specPath := writeSpecFile(t, baseDir, "status-require-runtime-observe-fail")
+
+	runner := &fakeComposeRunner{err: errors.New("docker daemon is not reachable")}
+	reg := registry.New()
+	reg.MustRegisterPlugin(genericprocess.New())
+	reg.MustRegisterBackend(compose.NewWithRunner(runner))
+
+	application := New(Options{StateDir: stateDir, Registries: reg})
+	if _, diags, err := application.Apply(context.Background(), specPath, ApplyOptions{OutputDir: outDir}); err != nil {
+		t.Fatalf("apply failed: %v", err)
+	} else if HasErrors(diags) {
+		t.Fatalf("unexpected diagnostics in apply: %#v", diags)
+	}
+
+	_, _, err := application.Status(context.Background(), specPath, StatusOptions{
+		OutputDir:      outDir,
+		RequireRuntime: true,
+	})
+	if err == nil {
+		t.Fatalf("expected status require-runtime error when observation fails")
+	}
+	if !strings.Contains(err.Error(), "runtime observation required but failed") {
+		t.Fatalf("unexpected status require-runtime error: %v", err)
+	}
+}
+
+func TestDoctorRequireRuntimeFailsWhenObservationFails(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	outDir := filepath.Join(baseDir, "out")
+	specPath := writeSpecFile(t, baseDir, "doctor-require-runtime-observe-fail")
+
+	runner := &fakeComposeRunner{err: errors.New("docker daemon is not reachable")}
+	reg := registry.New()
+	reg.MustRegisterPlugin(genericprocess.New())
+	reg.MustRegisterBackend(compose.NewWithRunner(runner))
+
+	application := New(Options{StateDir: stateDir, Registries: reg})
+	if _, diags, err := application.Apply(context.Background(), specPath, ApplyOptions{OutputDir: outDir}); err != nil {
+		t.Fatalf("apply failed: %v", err)
+	} else if HasErrors(diags) {
+		t.Fatalf("unexpected diagnostics in apply: %#v", diags)
+	}
+
+	_, err := application.Doctor(context.Background(), specPath, DoctorOptions{
+		OutputDir:      outDir,
+		RequireRuntime: true,
+	})
+	if err == nil {
+		t.Fatalf("expected doctor require-runtime error when observation fails")
+	}
+	if !strings.Contains(err.Error(), "runtime observation required but failed") {
+		t.Fatalf("unexpected doctor require-runtime error: %v", err)
+	}
+}
+
+func TestStatusRequireRuntimeImpliesObserve(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	outDir := filepath.Join(baseDir, "out")
+	specPath := writeSpecFile(t, baseDir, "status-require-runtime")
+
+	runner := &fakeComposeRunner{output: "NAME   IMAGE\nsvc    alpine:3.20"}
+	reg := registry.New()
+	reg.MustRegisterPlugin(genericprocess.New())
+	reg.MustRegisterBackend(compose.NewWithRunner(runner))
+
+	application := New(Options{StateDir: stateDir, Registries: reg})
+	if _, diags, err := application.Apply(context.Background(), specPath, ApplyOptions{OutputDir: outDir}); err != nil {
+		t.Fatalf("apply failed: %v", err)
+	} else if HasErrors(diags) {
+		t.Fatalf("unexpected diagnostics in apply: %#v", diags)
+	}
+
+	result, diags, err := application.Status(context.Background(), specPath, StatusOptions{
+		OutputDir:      outDir,
+		RequireRuntime: true,
+	})
+	if err != nil {
+		t.Fatalf("status with require-runtime failed: %v", err)
+	}
+	if HasErrors(diags) {
+		t.Fatalf("unexpected diagnostics in status: %#v", diags)
+	}
+	if !result.RuntimeObserveRequested {
+		t.Fatalf("expected runtime observation to be requested")
+	}
+	if result.RuntimeObservation == nil {
+		t.Fatalf("expected runtime observation to be present")
+	}
+	if len(runner.calls) != 1 {
+		t.Fatalf("expected one runtime observation command, got %d", len(runner.calls))
+	}
+}
+
+func TestStatusRequireRuntimeFailsWithoutObservationSupport(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	specPath := writeSpecFileWithBackend(t, baseDir, "status-require-runtime-unsupported", "terraform")
+
+	application := New(Options{StateDir: stateDir})
+	_, _, err := application.Status(context.Background(), specPath, StatusOptions{
+		RequireRuntime: true,
+	})
+	if err == nil {
+		t.Fatalf("expected runtime unsupported error")
+	}
+	var unsupportedErr *RuntimeUnsupportedError
+	if !errors.As(err, &unsupportedErr) {
+		t.Fatalf("expected RuntimeUnsupportedError, got %T", err)
+	}
+	if unsupportedErr.Capability != RuntimeCapabilityObservation {
+		t.Fatalf("expected observation capability error, got %q", unsupportedErr.Capability)
+	}
+	if !unsupportedErr.Required {
+		t.Fatalf("expected required runtime error")
+	}
+}
+
+func TestDoctorRequireRuntimeImpliesObserve(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	outDir := filepath.Join(baseDir, "out")
+	specPath := writeSpecFile(t, baseDir, "doctor-require-runtime")
+
+	runner := &fakeComposeRunner{output: "NAME   IMAGE\nsvc    alpine:3.20"}
+	reg := registry.New()
+	reg.MustRegisterPlugin(genericprocess.New())
+	reg.MustRegisterBackend(compose.NewWithRunner(runner))
+
+	application := New(Options{StateDir: stateDir, Registries: reg})
+	if _, diags, err := application.Apply(context.Background(), specPath, ApplyOptions{OutputDir: outDir}); err != nil {
+		t.Fatalf("apply failed: %v", err)
+	} else if HasErrors(diags) {
+		t.Fatalf("unexpected diagnostics in apply: %#v", diags)
+	}
+
+	report, err := application.Doctor(context.Background(), specPath, DoctorOptions{
+		OutputDir:      outDir,
+		RequireRuntime: true,
+	})
+	if err != nil {
+		t.Fatalf("doctor with require-runtime failed: %v", err)
+	}
+
+	foundRuntimeObserve := false
+	for _, check := range report.Checks {
+		if check.Name != "runtime.observe" {
+			continue
+		}
+		foundRuntimeObserve = true
+		if string(check.Status) != "pass" {
+			t.Fatalf("expected runtime.observe pass, got %s", check.Status)
+		}
+	}
+	if !foundRuntimeObserve {
+		t.Fatalf("expected runtime.observe check in doctor report")
+	}
+	if len(runner.calls) != 1 {
+		t.Fatalf("expected one runtime observation command, got %d", len(runner.calls))
+	}
+}
+
+func TestDoctorRequireRuntimeFailsWithoutObservationSupport(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	stateDir := filepath.Join(baseDir, "state")
+	specPath := writeSpecFileWithBackend(t, baseDir, "doctor-require-runtime-unsupported", "terraform")
+
+	application := New(Options{StateDir: stateDir})
+	_, err := application.Doctor(context.Background(), specPath, DoctorOptions{
+		RequireRuntime: true,
+	})
+	if err == nil {
+		t.Fatalf("expected runtime unsupported error")
+	}
+	var unsupportedErr *RuntimeUnsupportedError
+	if !errors.As(err, &unsupportedErr) {
+		t.Fatalf("expected RuntimeUnsupportedError, got %T", err)
+	}
+	if unsupportedErr.Capability != RuntimeCapabilityObservation {
+		t.Fatalf("expected observation capability error, got %q", unsupportedErr.Capability)
+	}
+	if !unsupportedErr.Required {
+		t.Fatalf("expected required runtime error")
+	}
+}
+
 func TestPlanHasNoSideEffects(t *testing.T) {
 	t.Parallel()
 
@@ -348,6 +636,10 @@ func containsArg(args []string, expected string) bool {
 }
 
 func writeSpecFile(t *testing.T, dir, clusterName string) string {
+	return writeSpecFileWithBackend(t, dir, clusterName, "docker-compose")
+}
+
+func writeSpecFileWithBackend(t *testing.T, dir, clusterName, backend string) string {
 	t.Helper()
 	path := filepath.Join(dir, "cluster.yaml")
 	raw := "apiVersion: bgorch.io/v1alpha1\n" +
@@ -358,7 +650,7 @@ func writeSpecFile(t *testing.T, dir, clusterName string) string {
 		"  family: generic\n" +
 		"  plugin: generic-process\n" +
 		"  runtime:\n" +
-		"    backend: docker-compose\n" +
+		"    backend: " + backend + "\n" +
 		"  nodePools:\n" +
 		"    - name: nodes\n" +
 		"      replicas: 1\n" +

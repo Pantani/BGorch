@@ -8,3 +8,7 @@ Current built-ins:
 - `compose-single`
 - `vm-single`
 - `cometbft-local` (available in CLI, documented in `chainops profile show`)
+- `ethereum-rpc`
+- `solana-rpc`
+- `bitcoin-node`
+- `cosmos-validator`

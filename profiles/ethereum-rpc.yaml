@@ -1,0 +1,6 @@
+name: ethereum-rpc
+summary: EVM execution client starter with typed plugin defaults.
+family: evm
+plugin: evm-family
+backend: docker-compose
+recommended_for: ethereum and evm operators

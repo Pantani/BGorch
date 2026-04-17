@@ -1,0 +1,6 @@
+name: solana-rpc
+summary: Solana validator or RPC starter profile.
+family: solana
+plugin: solana-family
+backend: docker-compose
+recommended_for: solana operators

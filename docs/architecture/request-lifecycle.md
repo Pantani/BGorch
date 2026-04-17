@@ -40,9 +40,10 @@ This document describes command execution flow as implemented in `internal/app/a
 4. Build plan.
 5. If `--dry-run`, return plan without writing artifacts/snapshot.
 6. Write artifacts.
-7. If `--runtime-exec`, execute backend runtime action when backend supports runtime execution.
-8. Save new snapshot.
-9. Release lock.
+7. If `--runtime-exec` or `--require-runtime`, execute backend runtime action.
+8. `--require-runtime` fails on missing capability/preconditions/runtime errors.
+9. Save new snapshot.
+10. Release lock.
 
 Failure semantics:
 
@@ -57,11 +58,13 @@ Failure semantics:
 3. Load snapshot and compute plan diff.
 4. Produce human/machine-readable observations.
 5. If `--observe-runtime`, call runtime observer when backend supports it.
+6. If `--require-runtime`, runtime observe is mandatory (`--observe-runtime` implied).
 
 Observation failure semantics:
 
 - Runtime observe errors do not fail the command.
 - Errors are surfaced in `runtimeObservationError` and observations list.
+- In strict mode (`--require-runtime`), runtime observe errors fail the command.
 
 ### `doctor`
 
@@ -73,6 +76,7 @@ Observation failure semantics:
 - snapshot readability,
 - desired vs snapshot drift,
 - optional runtime observation checks.
+- strict mode (`--require-runtime`) for mandatory runtime observation.
 
 `doctor` reports:
 
@@ -156,6 +160,7 @@ Key constraints:
 
 - Validates container workloads with declared image/ports.
 - Renders deterministic Kubernetes manifests (`Service` + `StatefulSet` + `volumeClaimTemplates`) in `kubernetes/manifests.yaml`.
+- Supports runtime observation via `kubectl get pods/services` with `chainops.io/cluster=<cluster>` selector.
 - Does not execute cluster runtime actions in current MVP.
 
 ### Terraform adapter backend (`terraform`)

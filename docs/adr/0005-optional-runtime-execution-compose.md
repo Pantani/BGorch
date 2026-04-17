@@ -31,6 +31,9 @@ Implemented behavior in code:
   - `RuntimeObserver` -> `docker compose ... ps --all`
 - apply flow persists snapshot only after successful runtime execution when `--runtime-exec` is enabled.
 - status/doctor runtime observation failures are reported as warnings/non-fatal observations.
+- strict mode `--require-runtime` is available in CLI:
+  - `apply --require-runtime` implies runtime execution and fails when runtime capability/prerequisites are missing;
+  - `status/doctor --require-runtime` imply runtime observation and fail when runtime capability/prerequisites are missing.
 
 ## Rationale
 
@@ -50,7 +53,7 @@ Implemented behavior in code:
 
 - runtime behavior is backend-dependent,
 - users must manage output-dir and compose file lifecycle explicitly,
-- no `--require-runtime` strict mode yet.
+- strict mode increases exit-nonzero frequency in automation when runtime prerequisites are missing.
 
 ## Out of Scope
 
@@ -62,6 +65,5 @@ Implemented behavior in code:
 
 Potential extensions (not implemented):
 
-- strict runtime requirement flag (`--require-runtime`),
 - richer runtime status normalization across backends,
 - structured runtime observation payloads beyond plain lines.

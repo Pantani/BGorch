@@ -90,14 +90,14 @@ Mitigações mínimas propostas:
 
 Estado atual da implementação:
 
-- `kubernetes` implementa `BuildDesired` e validação mínima (sem runtime exec/observe);
+- `kubernetes` implementa `BuildDesired`, validação mínima e runtime observe (sem runtime exec);
 - `terraform` implementa `BuildDesired` e validação mínima (sem runtime exec/observe);
 - `ansible` implementa `BuildDesired` e validação mínima (sem runtime exec/observe);
 - lock distribuído e reconciler contínuo seguem fora de escopo.
 
 ## Próximos passos (propostos)
 
-1. Evoluir `kubernetes` para capability de runtime (`execute/observe`) com semântica operacional explícita.
+1. Evoluir `kubernetes` para capability de runtime execution com semântica operacional explícita (runtime observe já implementado).
 2. Definir contrato de stages para `terraform` (plan/apply/output import) sem acoplar ao reconciler core.
 3. Definir contrato de stages para `ansible` (inventory/playbook/result mapping) com retorno estruturado para `status/doctor`.
 4. Adicionar matriz de testes de integração por capability (runtime/infra/config).

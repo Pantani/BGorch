@@ -15,6 +15,10 @@ Plugins encapsulate chain-family behavior without leaking it into core orchestra
 
 - `genericprocess`: generic fallback for arbitrary process-oriented chains.
 - `cometbft`: cometbft-oriented defaults/validation and generated config assets.
+- `evm`: EVM family plugin with typed client/network config.
+- `solana`: Solana family plugin with typed validator/RPC config.
+- `bitcoin`: Bitcoin family plugin with typed node config.
+- `cosmos`: Cosmos-SDK family plugin with typed chain config.
 
 ## Interaction Rules
 

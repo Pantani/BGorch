@@ -313,7 +313,7 @@ func sanitizeName(s string) string {
 	repl := strings.NewReplacer(" ", "-", "/", "-", "_", "-", ".", "-", ":", "-")
 	s = repl.Replace(s)
 	parts := strings.FieldsFunc(s, func(r rune) bool {
-		return !(r == '-' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+		return r != '-' && (r < 'a' || r > 'z') && (r < '0' || r > '9')
 	})
 	s = strings.Join(parts, "-")
 	s = strings.Trim(s, "-")

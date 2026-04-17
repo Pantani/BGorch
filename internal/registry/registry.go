@@ -12,8 +12,12 @@ import (
 	"github.com/Pantani/gorchestrator/internal/backend/sshsystemd"
 	"github.com/Pantani/gorchestrator/internal/backend/terraform"
 	"github.com/Pantani/gorchestrator/internal/chain"
+	"github.com/Pantani/gorchestrator/internal/chain/bitcoin"
 	"github.com/Pantani/gorchestrator/internal/chain/cometbft"
+	"github.com/Pantani/gorchestrator/internal/chain/cosmos"
+	"github.com/Pantani/gorchestrator/internal/chain/evm"
 	"github.com/Pantani/gorchestrator/internal/chain/genericprocess"
+	"github.com/Pantani/gorchestrator/internal/chain/solana"
 )
 
 // PluginRegistry stores chain plugins by unique name.
@@ -47,6 +51,10 @@ func NewDefault() *Registries {
 	r := New()
 	r.MustRegisterPlugin(genericprocess.New())
 	r.MustRegisterPlugin(cometbft.New())
+	r.MustRegisterPlugin(evm.New())
+	r.MustRegisterPlugin(solana.New())
+	r.MustRegisterPlugin(bitcoin.New())
+	r.MustRegisterPlugin(cosmos.New())
 	r.MustRegisterBackend(compose.New())
 	r.MustRegisterBackend(sshsystemd.New())
 	r.MustRegisterBackend(kubernetes.New())

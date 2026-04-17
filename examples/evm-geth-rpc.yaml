@@ -1,0 +1,64 @@
+apiVersion: bgorch.io/v1alpha1
+kind: ChainCluster
+metadata:
+  name: evm-geth-rpc
+spec:
+  family: evm
+  plugin: evm-family
+  profile: ethereum-rpc
+  runtime:
+    backend: docker-compose
+    backendConfig:
+      compose:
+        projectName: evm-geth-rpc
+        outputFile: compose.yaml
+  pluginConfig:
+    evm:
+      client: geth
+      network: sepolia
+      syncMode: snap
+      httpEnabled: true
+      wsEnabled: true
+      authRPCEnabled: true
+  nodePools:
+    - name: rpc
+      replicas: 1
+      roles: [rpc]
+      template:
+        volumes:
+          - name: datadir
+            type: named
+        workloads:
+          - name: geth
+            mode: container
+            image: ethereum/client-go:v1.14.13
+            command: ["geth"]
+            args:
+              - "--datadir=/var/lib/geth"
+              - "--sepolia"
+              - "--http"
+              - "--http.addr=0.0.0.0"
+              - "--http.port=8545"
+              - "--ws"
+              - "--ws.addr=0.0.0.0"
+              - "--ws.port=8546"
+              - "--authrpc.addr=0.0.0.0"
+              - "--authrpc.port=8551"
+              - "--syncmode=snap"
+            ports:
+              - name: p2p
+                containerPort: 30303
+                hostPort: 30303
+              - name: rpc
+                containerPort: 8545
+                hostPort: 8545
+              - name: ws
+                containerPort: 8546
+                hostPort: 8546
+              - name: authrpc
+                containerPort: 8551
+                hostPort: 8551
+            volumeMounts:
+              - volume: datadir
+                path: /var/lib/geth
+            restartPolicy: unless-stopped

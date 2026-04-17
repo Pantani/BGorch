@@ -342,7 +342,7 @@ func sanitizeIdentifier(v string) string {
 	repl := strings.NewReplacer(" ", "-", "/", "-", "_", "-", ".", "-", ":", "-")
 	v = repl.Replace(v)
 	parts := strings.FieldsFunc(v, func(r rune) bool {
-		return !(r == '-' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+		return r != '-' && (r < 'a' || r > 'z') && (r < '0' || r > '9')
 	})
 	v = strings.Join(parts, "-")
 	v = strings.Trim(v, "-")

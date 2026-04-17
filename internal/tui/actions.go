@@ -146,10 +146,6 @@ type actionResult struct {
 	DoctorChecks []doctor.Check
 }
 
-func (r actionResult) succeeded() bool {
-	return r.Outcome != outcomeFailure
-}
-
 type runner struct {
 	application *app.App
 }

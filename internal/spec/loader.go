@@ -42,11 +42,7 @@ func ApplyDefaults(c *v1alpha1.ChainCluster) {
 		c.Kind = v1alpha1.KindChainCluster
 	}
 	if c.Spec.Plugin == "" {
-		if c.Spec.Family == "generic" {
-			c.Spec.Plugin = "generic-process"
-		} else {
-			c.Spec.Plugin = c.Spec.Family
-		}
+		c.Spec.Plugin = defaultPluginForFamily(c.Spec.Family)
 	}
 	c.Spec.Runtime.Backend = strings.TrimSpace(c.Spec.Runtime.Backend)
 
@@ -87,6 +83,25 @@ func ApplyDefaults(c *v1alpha1.ChainCluster) {
 				}
 			}
 		}
+	}
+}
+
+func defaultPluginForFamily(family string) string {
+	switch strings.ToLower(strings.TrimSpace(family)) {
+	case "generic":
+		return "generic-process"
+	case "cometbft":
+		return "cometbft-family"
+	case "evm", "ethereum":
+		return "evm-family"
+	case "solana":
+		return "solana-family"
+	case "bitcoin", "btc":
+		return "bitcoin-family"
+	case "cosmos":
+		return "cosmos-family"
+	default:
+		return strings.TrimSpace(family)
 	}
 }
 

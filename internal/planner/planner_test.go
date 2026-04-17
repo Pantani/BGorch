@@ -65,7 +65,7 @@ func TestBuildPlanUpdateAndDelete(t *testing.T) {
 			hasArtifactDelete = true
 		}
 	}
-	if !(hasSvcUpdate && hasSvcDelete && hasArtifactUpdate && hasArtifactDelete) {
+	if !hasSvcUpdate || !hasSvcDelete || !hasArtifactUpdate || !hasArtifactDelete {
 		t.Fatalf("unexpected plan changes: %+v", plan.Changes)
 	}
 }

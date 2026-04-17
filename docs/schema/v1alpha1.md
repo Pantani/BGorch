@@ -48,6 +48,22 @@
   - `persistentPeers[]`
   - `prometheusEnabled`, `prometheusListenAddr`
   - `apiEnabled`, `grpcEnabled`
+- `spec.pluginConfig.evm`
+  - `client`, `network`, `chainID`, `syncMode`
+  - `httpEnabled`, `wsEnabled`, `authRPCEnabled`, `metricsEnabled`
+  - `p2pPort`, `httpPort`, `wsPort`, `authRPCPort`, `metricsPort`
+  - `bootnodes[]`
+- `spec.pluginConfig.solana`
+  - `client`, `cluster`
+  - `rpcPort`, `wsPort`, `gossipPort`, `dynamicPortRange`
+  - `entryPoints[]`, `fullRPC`, `privateRPC`, `noVoting`, `expectedGenesisHash`
+- `spec.pluginConfig.bitcoin`
+  - `client`, `network`, `rpcPort`, `p2pPort`
+  - `zmqBlockAddr`, `zmqTxAddr`, `txIndex`, `pruneMB`, `extraArgs[]`
+- `spec.pluginConfig.cosmos`
+  - `client`, `chainID`, `moniker`, `daemonBinary`, `homeDir`
+  - `p2pPort`, `rpcPort`, `apiEnabled`, `apiPort`, `grpcEnabled`, `grpcPort`
+  - `pruning`, `minimumGasPrices`, `seeds[]`, `persistentPeers[]`
 
 Plugins may additionally read node/workload scoped plugin config blocks.
 
@@ -57,7 +73,13 @@ From `spec.ApplyDefaults`:
 
 - `apiVersion` defaulted to `bgorch.io/v1alpha1`
 - `kind` defaulted to `ChainCluster`
-- `plugin` defaulted from family (`generic -> generic-process`, else family name)
+- `plugin` defaulted from family aliases:
+  - `generic -> generic-process`
+  - `cometbft -> cometbft-family`
+  - `evm|ethereum -> evm-family`
+  - `solana -> solana-family`
+  - `bitcoin|btc -> bitcoin-family`
+  - `cosmos -> cosmos-family`
 - compose `outputFile` defaulted to `compose.yaml`
 - pool `replicas` defaulted to `1`
 - workload `mode` defaulted to `container`

@@ -19,7 +19,8 @@ Implementado:
 
 Não implementado:
 
-- runtime exec/observe para `kubernetes`, `terraform` e `ansible`;
+- runtime exec para `kubernetes`, `terraform` e `ansible`;
+- runtime observe para `terraform` e `ansible`;
 - lock distribuído/reconciler contínuo.
 
 ## Modelo de responsabilidades
@@ -88,7 +89,8 @@ Spec -> Validate -> Plugin Build -> Backend BuildDesired -> Plan
 
 1. **Kubernetes backend (estado atual)**:
    - tradução determinística de desired state implementada;
-   - próximo passo: observação/execução runtime opcional no fluxo `status/doctor/apply`.
+   - observação runtime opcional implementada (`status/doctor` via `kubectl`);
+   - próximo passo: execução runtime opcional no fluxo `apply`.
 2. **Terraform adapter (estado atual)**:
    - scaffold determinístico de artefatos implementado;
    - próximo passo: estágios explícitos de plan/apply e import de outputs.
