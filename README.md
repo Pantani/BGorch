@@ -2,139 +2,209 @@
 
 Chainops é um orquestrador declarativo, Go-first, para operações multi-blockchain.
 
-Foco do produto:
+`bgorch` permanece suportado como alias legado para migração incremental.
 
-- desired state + plan/apply/reconcile
-- UX previsível para operadores
-- extensibilidade por plugin/família/backend
-- compatibilidade com múltiplos runtimes (compose, ssh+systemd, kubernetes, terraform, ansible)
+## Visão Geral
 
-`bgorch` continua disponível como alias legado para migração incremental.
+Problema que o projeto resolve:
 
-## Para Quem
+- convergência determinística de topologias blockchain multi-processo,
+- separação clara entre semântica de chain (plugin) e semântica de runtime (backend),
+- fluxo previsível para operadores: `init -> doctor -> render -> plan -> apply -> status`.
 
-- Desenvolvedor local: subir stack rápido, validar, destruir sem atrito.
-- Operador/SRE: diff claro, preflight, apply seguro, saída estável para automação.
-- Operador blockchain: escolher família/profile/backend sem precisar conhecer internals.
-- Autor de plugin: evoluir suporte de famílias sem acoplar no core.
+Pilares:
 
-## Mental Model
+- desired state com diff determinístico,
+- UX orientada a operador (saídas acionáveis, confirmação explícita, formato estável),
+- extensibilidade por plugins/backends,
+- suporte a múltiplos alvos (compose, ssh+systemd, kubernetes, terraform, ansible).
 
-1. Você declara estado desejado (`ChainCluster`).
-2. `render` mostra configuração canônica resolvida.
-3. `plan` calcula diff determinístico sem efeitos colaterais.
-4. `apply` reconcilia estado com confirmação explícita.
-5. `status`/`doctor` explicam convergência e problemas.
+## Features Principais
 
-## Quickstart (One Obvious Path)
+- API versionada `bgorch.io/v1alpha1` (`ChainCluster`).
+- CLI principal `chainops` com comandos de onboarding, explainability, plan/apply, observabilidade e gestão contextual.
+- Plugins de família:
+  - `generic-process`
+  - `cometbft-family`
+  - `evm-family`
+  - `solana-family`
+  - `bitcoin-family`
+  - `cosmos-family`
+- Backends:
+  - `docker-compose`
+  - `ssh-systemd`
+  - `kubernetes` (render + observe)
+  - `terraform` (adapter em modo artifact)
+  - `ansible` (adapter em modo artifact)
+- Runtime gates explícitos:
+  - `--runtime-exec`
+  - `--observe-runtime`
+  - `--require-runtime`
+- Snapshot + lock por `(cluster, backend)` para segurança de `apply`.
+
+## Arquitetura (High-Level)
+
+```text
+ChainCluster spec
+  -> load + defaults
+  -> validate (core + plugin + backend)
+  -> plugin.Normalize + plugin.Build
+  -> backend.BuildDesired
+  -> DesiredState
+     -> render (canonical/artifacts)
+     -> plan (desired vs snapshot)
+     -> apply (lock + render + runtime opcional + snapshot)
+     -> status/doctor (convergência + runtime observe opcional)
+```
+
+Fronteiras arquiteturais:
+
+- `internal/cli`: UX, parse de flags, mensagens e comando.
+- `internal/engine`/`internal/app`: orquestração de pipelines.
+- `internal/chain`: comportamento específico de família.
+- `internal/backend`: tradução/execução específica de runtime.
+- `internal/planner` + `internal/state`: diff e persistência local determinística.
+
+## Stack Técnica
+
+- Go `1.22+`
+- CLI: [Cobra](https://github.com/spf13/cobra)
+- Config precedence: [Viper](https://github.com/spf13/viper)
+- YAML: `gopkg.in/yaml.v3`
+- TUI (modo legado `bgorch tui`): [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+
+## Setup Local
+
+Pré-requisitos:
+
+- Go `1.22+`
+- opcional: Docker + Compose plugin
+- opcional: `ssh` + `systemctl` remoto para runtime ssh-systemd
+- opcional: `kubectl` para observação runtime kubernetes
+
+Instalação rápida:
 
 ```bash
-# 1) Bootstrap do workspace
+go mod download
+```
+
+## Como Rodar
+
+```bash
+# help raiz
+chainops --help
+
+# onboarding inicial
 chainops init --profile local-dev --name demo
 
-# 2) Preflight
+# fluxo principal
 chainops doctor -f chainops.yaml
-
-# 3) Configuração canônica resolvida
 chainops render -f chainops.yaml -o yaml
-
-# 4) Preview de mudanças
 chainops plan -f chainops.yaml --out plan.json
-
-# 5) Reconciliação segura
 chainops apply plan.json --yes
 ```
 
-## Fluxo Principal
+Alias legado:
 
 ```bash
-chainops init
-chainops doctor
-chainops render
-chainops plan
-chainops apply
+bgorch --help
 ```
 
-## Comandos Principais
+## Variáveis de Ambiente (Overview)
 
-- `init`: cria projeto/spec inicial (interativo ou não interativo).
-- `explain`: explica schema/campos/plugins/perfis.
-- `render`: exibe config canônica resolvida; também suporta render de artifacts.
-- `plan`: preview side-effect free; suporta `--out`.
-- `apply`: reconcilia desired state; suporta `apply <plan-file>`, `--runtime-exec` e `--require-runtime`.
-- `status`: desired vs observed; suporta `--observe-runtime` e `--require-runtime`.
-- `logs`: detalhes de observação de runtime.
-- `doctor`: checks acionáveis de preflight/convergência; suporta `--observe-runtime` e `--require-runtime`.
-- `destroy`: teardown local explícito (artifacts + snapshot).
-- `backup`/`restore`/`upgrade`: inspeção de policy (adapters runtime pendentes).
-- `plugin`, `profile`, `context`, `completion`, `version`.
+Prefixo padrão: `CHAINOPS_`.
 
-Referência detalhada: [docs/reference/cli.md](docs/reference/cli.md).
+Mapeamento direto de chaves CLI:
 
-## Exemplos
+- `CHAINOPS_CONFIG`
+- `CHAINOPS_FILE`
+- `CHAINOPS_STATE_DIR`
+- `CHAINOPS_ARTIFACTS_DIR`
+- `CHAINOPS_OUTPUT`
+- `CHAINOPS_NON_INTERACTIVE`
+- `CHAINOPS_YES`
 
-- `examples/starter-local-dev.yaml`
-- `examples/starter-vm-single.yaml`
-- `examples/generic-single-compose.yaml`
-- `examples/generic-single-ssh-systemd.yaml`
-- `examples/generic-single-kubernetes.yaml`
-- `examples/generic-infra-terraform.yaml`
-- `examples/generic-bootstrap-ansible.yaml`
-- `examples/cometbft-single-validator.yaml`
-- `examples/evm-geth-rpc.yaml`
-- `examples/solana-rpc.yaml`
-- `examples/bitcoin-core-node.yaml`
-- `examples/cosmos-sdk-validator.yaml`
-
-## Configuração e Precedência
-
-Precedência explícita:
+Precedência efetiva:
 
 ```text
 defaults < config file < env vars < flags
 ```
 
-Documentação:
+Referência completa:
 
 - [docs/reference/config-precedence.md](docs/reference/config-precedence.md)
 - [docs/reference/configuration-model.md](docs/reference/configuration-model.md)
 
-## Arquitetura (Resumo)
-
-Camadas principais:
-
-- `internal/cli`: UX/command model (Cobra).
-- `internal/config`: resolução de config (Viper, precedência explícita).
-- `internal/engine`: façade do core declarativo.
-- `internal/schema`: explain docs.
-- `internal/workspace`: onboarding/profiles/templates.
-- `internal/app`, `planner`, `state`, `backend`, `chain`: core reconcile.
-- `pkg/pluginapi`: API versionável para evolução de SDK.
-
-Detalhes: [docs/architecture/target-architecture.md](docs/architecture/target-architecture.md).
-
-## Qualidade
+## Testes
 
 ```bash
 go test ./...
-make verify
+# ou
+make test
 ```
 
-Cobertura adicionada para:
+## Lint e Format
 
-- precedência de config
-- render canônico side-effect free
-- plan side-effect free
-- help output golden
-- fluxo chainops (`init/plan/apply` com `--out`/`--yes`)
+```bash
+make fmt        # gofmt -w
+make format     # check gofmt
+make vet
+make lint       # requer golangci-lint instalado
+```
 
-## Migração
+## Build e Deploy
 
-Guia de migração CLI: [docs/migrations/cli-redesign.md](docs/migrations/cli-redesign.md).
+Build local:
 
-## Documentação UX
+```bash
+make build
+# binário: ./bin/chainops
+```
 
-- [docs/ux/cli-principles.md](docs/ux/cli-principles.md)
-- [docs/ux/personas.md](docs/ux/personas.md)
-- [docs/ux/user-journeys.md](docs/ux/user-journeys.md)
-- [docs/ux/error-style-guide.md](docs/ux/error-style-guide.md)
+Instalar no GOPATH/bin:
+
+```bash
+make install
+```
+
+Deploy/release:
+
+- não há pipeline de release automatizado no repositório;
+- fluxo atual é manual (verify -> build -> publicação externa de artefatos/changelog).
+
+## Diretórios Importantes
+
+- `cmd/chainops`: entrypoint principal.
+- `cmd/bgorch`: alias legado.
+- `internal/cli`: árvore de comandos e UX.
+- `internal/config`: resolução de config/env/flags.
+- `internal/engine`: façade para pipelines do core.
+- `internal/app`: pipelines declarativos (`validate/render/plan/apply/status/doctor`).
+- `internal/api/v1alpha1`: tipos do schema.
+- `internal/chain`: plugins por família.
+- `internal/backend`: backends/adapters por runtime.
+- `internal/planner`: diff deterministic.
+- `internal/state`: snapshots + locks.
+- `internal/output`: serialização table/json/yaml e erros acionáveis.
+- `internal/workspace`: profiles e templates de `init`.
+- `pkg/pluginapi`: contrato versionável para SDK/plugin ecosystem.
+- `examples`: specs de referência.
+- `test`: integração/regressão/golden.
+- `docs`: arquitetura, ADRs, operação, schema e UX.
+
+## Assunções e Riscos Operacionais
+
+- lock/snapshot são locais (`.chainops/state` por default), não distribuídos;
+- `plan` e render canônico são side-effect free por design;
+- runtime ops são backend-gated e falham rápido em preflight/capability mismatch;
+- `kubernetes` hoje observa runtime mas não executa runtime apply;
+- adapters `terraform`/`ansible` estão em modo artifact (sem runtime exec/observe).
+
+## Mapa de Documentação
+
+- [CLI reference](docs/reference/cli.md)
+- [Developer workflows](docs/development/developer-workflows.md)
+- [Request lifecycle](docs/architecture/request-lifecycle.md)
+- [Architecture target](docs/architecture/target-architecture.md)
+- [Operational guide](docs/operations/commands-and-integration.md)
+- [ADRs](docs/adr)

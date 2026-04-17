@@ -108,11 +108,13 @@ type WorkloadSpec struct {
 	PluginConfig  PluginConfig      `yaml:"pluginConfig,omitempty" json:"pluginConfig,omitempty"`
 }
 
+// EnvVar defines one workload environment variable pair.
 type EnvVar struct {
 	Name  string `yaml:"name" json:"name"`
 	Value string `yaml:"value,omitempty" json:"value,omitempty"`
 }
 
+// PortSpec declares one exposed workload port mapping.
 type PortSpec struct {
 	Name          string `yaml:"name,omitempty" json:"name,omitempty"`
 	ContainerPort int    `yaml:"containerPort" json:"containerPort"`
@@ -128,24 +130,28 @@ const (
 	VolumeTypeBind  VolumeType = "bind"
 )
 
+// VolumeSpec declares a named or bind volume in a node template.
 type VolumeSpec struct {
 	Name   string     `yaml:"name" json:"name"`
 	Type   VolumeType `yaml:"type,omitempty" json:"type,omitempty"`
 	Source string     `yaml:"source,omitempty" json:"source,omitempty"`
 }
 
+// VolumeMountSpec attaches a declared volume to a workload path.
 type VolumeMountSpec struct {
 	Volume   string `yaml:"volume" json:"volume"`
 	Path     string `yaml:"path" json:"path"`
 	ReadOnly bool   `yaml:"readOnly,omitempty" json:"readOnly,omitempty"`
 }
 
+// FileSpec declares file content rendered as plugin/backend artifact input.
 type FileSpec struct {
 	Path    string `yaml:"path" json:"path"`
 	Content string `yaml:"content" json:"content"`
 	Mode    string `yaml:"mode,omitempty" json:"mode,omitempty"`
 }
 
+// SecretRef models desired secret wiring intent for future secret integrations.
 type SecretRef struct {
 	Name       string `yaml:"name" json:"name"`
 	Source     string `yaml:"source" json:"source"`
@@ -154,32 +160,38 @@ type SecretRef struct {
 	TargetFile string `yaml:"targetFile,omitempty" json:"targetFile,omitempty"`
 }
 
+// SyncPolicy describes bootstrap/snapshot sync intent for a node.
 type SyncPolicy struct {
 	Mode     string `yaml:"mode,omitempty" json:"mode,omitempty"`
 	Snapshot string `yaml:"snapshot,omitempty" json:"snapshot,omitempty"`
 }
 
+// BackupPolicy describes desired backup cadence and retention intent.
 type BackupPolicy struct {
 	Enabled   bool   `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 	Schedule  string `yaml:"schedule,omitempty" json:"schedule,omitempty"`
 	Retention int    `yaml:"retention,omitempty" json:"retention,omitempty"`
 }
 
+// UpgradePolicy describes desired rollout strategy intent.
 type UpgradePolicy struct {
 	Strategy       string `yaml:"strategy,omitempty" json:"strategy,omitempty"`
 	MaxUnavailable int    `yaml:"maxUnavailable,omitempty" json:"maxUnavailable,omitempty"`
 }
 
+// ObservePolicy describes desired metrics/logs observation intent.
 type ObservePolicy struct {
 	Metrics bool `yaml:"metrics,omitempty" json:"metrics,omitempty"`
 	Logs    bool `yaml:"logs,omitempty" json:"logs,omitempty"`
 }
 
+// ResourceSizing captures CPU/memory sizing hints.
 type ResourceSizing struct {
 	CPU    string `yaml:"cpu,omitempty" json:"cpu,omitempty"`
 	Memory string `yaml:"memory,omitempty" json:"memory,omitempty"`
 }
 
+// LifecycleHooks models command hooks around workload lifecycle transitions.
 type LifecycleHooks struct {
 	PreStart  []string `yaml:"preStart,omitempty" json:"preStart,omitempty"`
 	PostStart []string `yaml:"postStart,omitempty" json:"postStart,omitempty"`
@@ -195,6 +207,7 @@ const (
 	HealthCheckTCP  HealthCheckType = "tcp"
 )
 
+// HealthCheckSpec defines one workload health probe policy.
 type HealthCheckSpec struct {
 	Type             HealthCheckType `yaml:"type" json:"type"`
 	Command          string          `yaml:"command,omitempty" json:"command,omitempty"`

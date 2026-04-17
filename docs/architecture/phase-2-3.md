@@ -1,10 +1,10 @@
-# BGorch Architecture and Maturity Snapshot
+# Chainops Architecture and Maturity Snapshot
 
 Status date: **2026-04-16**.
 
 ## Architectural Axes
 
-BGorch is split into three independent concerns:
+Chainops core is split into three independent concerns:
 
 1. Core orchestration (`internal/app`, `internal/planner`, `internal/state`, `internal/renderer`)
 2. Chain-family plugins (`internal/chain/*`)

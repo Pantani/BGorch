@@ -1,6 +1,6 @@
 # Request Lifecycle and Runtime Flows
 
-This document describes command execution flow as implemented in `internal/app/app.go` and related packages.
+This document describes command execution flow as implemented in `internal/app`, `internal/engine`, and related packages.
 
 ## 1. End-to-end command lifecycle
 
@@ -17,54 +17,56 @@ This document describes command execution flow as implemented in `internal/app/a
 
 ### `render`
 
-1. Run the same validation + resolution pipeline.
+1. Run validation + resolution pipeline.
 2. Build desired state:
    - `plugin.Normalize`,
    - `plugin.Build`,
    - `backend.BuildDesired`.
-3. Write artifacts to output directory (`renderer.WriteArtifacts`).
-4. Optionally persist state snapshot when `--write-state` is enabled.
+3. By default, return canonical resolved config (`chainops render -o yaml|json`).
+4. In artifact mode (`--write-artifacts`), write artifacts via `renderer.WriteArtifacts`.
+5. Optionally persist snapshot when `--write-state` is enabled.
 
-### `plan`
+### `plan` / `diff`
 
 1. Build desired state.
-2. Load snapshot from `.bgorch/state/<cluster>--<backend>.json`.
-3. Compare desired vs snapshot hashes using `planner.Build`.
+2. Load snapshot from `<state-dir>/<cluster>--<backend>.json`.
+3. Compare desired vs snapshot hashes (`planner.Build`).
 4. Return ordered change list (`create|update|delete|noop`).
+5. `diff` is a filtered non-noop view of plan.
 
 ### `apply`
 
-1. Build desired state.
-2. Acquire exclusive lock `.bgorch/state/<cluster>--<backend>.lock`.
-3. Load current snapshot.
-4. Build plan.
-5. If `--dry-run`, return plan without writing artifacts/snapshot.
-6. Write artifacts.
-7. If `--runtime-exec` or `--require-runtime`, execute backend runtime action.
-8. `--require-runtime` fails on missing capability/preconditions/runtime errors.
-9. Save new snapshot.
-10. Release lock.
+1. Resolve input (`-f <spec>` or `<plan-file>` with `sourceSpec`).
+2. Build desired state.
+3. Acquire exclusive lock `<state-dir>/<cluster>--<backend>.lock`.
+4. Load current snapshot.
+5. Build plan.
+6. If `--dry-run`, return plan without writing artifacts/snapshot.
+7. Write artifacts.
+8. If `--runtime-exec` or `--require-runtime`, execute backend runtime action.
+9. `--require-runtime` fails on missing capability/preconditions/runtime errors.
+10. Save new snapshot.
+11. Release lock.
 
 Failure semantics:
 
-- Lock acquisition failure aborts apply.
-- Runtime execution failure aborts apply and does not persist snapshot.
-- Lock release runs in `defer`; release errors are surfaced when no prior error exists.
+- lock acquisition failure aborts apply,
+- runtime execution failure aborts apply and does not persist snapshot,
+- lock release runs in `defer`; release errors surface when no prior error exists.
 
 ### `status`
 
-1. Validate spec first.
-2. Build desired state (if validation has no errors).
+1. Validate spec.
+2. Build desired state.
 3. Load snapshot and compute plan diff.
-4. Produce human/machine-readable observations.
+4. Produce convergence observations.
 5. If `--observe-runtime`, call runtime observer when backend supports it.
 6. If `--require-runtime`, runtime observe is mandatory (`--observe-runtime` implied).
 
 Observation failure semantics:
 
-- Runtime observe errors do not fail the command.
-- Errors are surfaced in `runtimeObservationError` and observations list.
-- In strict mode (`--require-runtime`), runtime observe errors fail the command.
+- by default: runtime observe errors are non-fatal and surfaced in output,
+- strict mode (`--require-runtime`): runtime observe errors fail the command.
 
 ### `doctor`
 
@@ -75,51 +77,57 @@ Observation failure semantics:
 - state directory accessibility,
 - snapshot readability,
 - desired vs snapshot drift,
-- optional runtime observation checks.
+- optional runtime observation checks,
 - strict mode (`--require-runtime`) for mandatory runtime observation.
 
-`doctor` reports:
+`doctor` statuses:
 
-- `pass` for healthy checks,
-- `warn` for degraded/non-blocking conditions,
-- `fail` for actionable blocking issues.
+- `pass`: healthy,
+- `warn`: degraded/non-blocking,
+- `fail`: blocking/actionable.
 
 ## 2. State model and transitions
 
-State backend is filesystem-based under `.bgorch/state`.
+State backend is filesystem-based under CLI `state-dir`:
+
+- default `chainops`: `.chainops/state`
+- default `bgorch` alias: `.bgorch/state`
 
 Artifacts:
 
-- snapshot file: `<cluster>--<backend>.json`
-- lock file: `<cluster>--<backend>.lock`
+- snapshot: `<cluster>--<backend>.json`
+- lock: `<cluster>--<backend>.lock`
 
-Snapshot data model:
+Snapshot model:
 
-- `services`: map of service name -> hash(JSON(service))
-- `artifacts`: map of artifact path -> hash(content)
+- `services`: map `serviceName -> hash(json(service))`
+- `artifacts`: map `artifactPath -> hash(content)`
 - metadata: `version`, `clusterName`, `backend`, `updatedAt`
 
 Transition model:
 
-1. `nil snapshot` + desired -> all resources become `create`.
-2. matching hashes -> `noop`.
-3. hash mismatch -> `update`.
-4. missing in desired/current -> `delete`/`create`.
+1. missing snapshot + desired => `create`
+2. hash match => `noop`
+3. hash mismatch => `update`
+4. missing in desired/current => `delete`/`create`
 
 ## 3. Concurrency and locking
 
-Lock scope is `(clusterName, backend)`.
+Lock scope: `(clusterName, backend)`.
 
 Implementation:
 
-- lock acquisition uses `os.O_CREATE|os.O_EXCL` for atomicity;
-- lock file stores `pid` and timestamp metadata;
-- lock release is idempotent (`sync.Once`).
+- atomic acquisition via `os.O_CREATE|os.O_EXCL`,
+- lock metadata stores pid + timestamp,
+- release is idempotent (`sync.Once`).
 
-Guarantees:
+Guarantee:
 
-- prevents concurrent local `apply` for the same cluster/backend pair;
-- does not provide distributed locking across multiple machines.
+- protects local concurrent `apply` on a single machine.
+
+Non-goal:
+
+- distributed lock coordination across multiple hosts.
 
 ## 4. Plugin/backend interaction flow
 
@@ -128,102 +136,93 @@ ChainCluster
   -> Plugin.Validate / Normalize / Build
   -> plugin Output (artifacts + metadata)
   -> Backend.ValidateTarget / BuildDesired
-  -> DesiredState (services, volumes, networks, artifacts, metadata)
+  -> DesiredState
 ```
 
-Key constraints:
+Ownership boundaries:
 
-- plugin owns chain-family semantics;
-- backend owns runtime translation/execution semantics;
-- core owns orchestration, planning, diagnostics, and state persistence.
+- plugin: chain-family semantics,
+- backend: runtime translation/execution semantics,
+- core: orchestration, diagnostics, planning, state persistence.
 
 ## 5. Runtime integrations
 
-### Compose backend (`docker-compose`)
+### Compose (`docker-compose`)
 
-- Always renders compose artifacts.
-- Optional runtime actions:
-  - `ExecuteRuntime`: `docker compose ... up -d`
-  - `ObserveRuntime`: `docker compose ... ps --all`
-- Requires rendered compose file in output dir.
+- always renders compose artifacts,
+- runtime exec: `docker compose ... up -d`,
+- runtime observe: `docker compose ... ps --all`.
 
-### SSH/systemd backend (`ssh-systemd`)
+### SSH/systemd (`ssh-systemd`)
 
-- Validates host-mode workloads.
-- Renders systemd units, env files, and node directory layout files.
-- Optional runtime actions:
-  - `ExecuteRuntime`: remote SSH preflight against `systemctl --version`
-  - `ObserveRuntime`: remote SSH `systemctl list-units` observation
-- Requires rendered ssh-systemd artifacts and runtime targets.
+- validates host-mode workloads,
+- renders unit/env/layout artifacts,
+- runtime exec: SSH preflight (`systemctl --version`),
+- runtime observe: SSH `systemctl list-units`.
 
-### Kubernetes backend (`kubernetes`)
+### Kubernetes (`kubernetes`)
 
-- Validates container workloads with declared image/ports.
-- Renders deterministic Kubernetes manifests (`Service` + `StatefulSet` + `volumeClaimTemplates`) in `kubernetes/manifests.yaml`.
-- Supports runtime observation via `kubectl get pods/services` with `chainops.io/cluster=<cluster>` selector.
-- Does not execute cluster runtime actions in current MVP.
+- validates container workloads with image constraints,
+- renders deterministic manifests (`Service` + `StatefulSet` + `PVC`),
+- runtime observe via `kubectl get` with cluster label selector,
+- no runtime exec in current implementation.
 
-### Terraform adapter backend (`terraform`)
+### Terraform (`terraform`) and Ansible (`ansible`)
 
-- Renders deterministic infra adapter scaffold (`main.tf`, `variables.tf`, `outputs.tf`, `terraform.tfvars.json`).
-- Does not execute terraform runtime actions in current MVP.
-
-### Ansible adapter backend (`ansible`)
-
-- Renders deterministic bootstrap artifacts (`inventory.ini`, `group_vars/all.yml`, `playbook.bootstrap.yml`).
-- Does not execute ansible runtime actions in current MVP.
+- deterministic adapter artifact generation,
+- no runtime exec/observe in current implementation.
 
 ## 6. Configuration loading and override rules
 
-Applied defaults (`spec.ApplyDefaults`):
+Spec defaults (`spec.ApplyDefaults`):
 
-- `apiVersion` -> `bgorch.io/v1alpha1`
-- `kind` -> `ChainCluster`
-- `spec.plugin` -> `generic-process` when `family=generic`, else `family` value
-- compose output file default -> `compose.yaml`
-- node pool replicas default -> `1`
-- workload mode default -> `container`
-- restart policy default -> `unless-stopped`
-- port protocol default -> `tcp`
+- `apiVersion`: `bgorch.io/v1alpha1`
+- `kind`: `ChainCluster`
+- plugin auto-selection by family alias map,
+- compose output file default: `compose.yaml`,
+- node/workload defaults: replicas/mode/restart/protocol.
 
-CLI-level option defaults:
+CLI config precedence:
 
-- state dir -> `.bgorch/state`
-- render/apply output dir -> `.bgorch/render`
+```text
+defaults < config file < env vars < flags
+```
+
+Relevant flags:
+
+- `--file`, `--state-dir`, `--artifacts-dir`, `--output`, `--yes`, `--non-interactive`.
 
 ## 7. Error handling strategy
 
-BGorch uses two channels:
+Two channels:
 
-- diagnostics (`[]domain.Diagnostic`) for user/spec issues,
+- diagnostics (`[]domain.Diagnostic`) for validation/resolution issues,
 - returned `error` for operational/internal failures.
 
-Practical effect:
+Practical effects:
 
-- validation issues are reportable and often non-panicking,
-- filesystem/process/runtime failures short-circuit command execution,
-- `status`/`doctor` degrade gracefully for runtime observation failures.
+- validation issues are visible and structured,
+- runtime/filesystem/process failures short-circuit command execution,
+- actionable errors include probable cause + fix hint + next command.
 
 ## 8. Background jobs / workers / eventing
 
-Current implementation has no persistent background workers, event bus, queue, or scheduler.
+Current implementation has no persistent background workers, event bus, or scheduler.
 
-- all command paths are synchronous per invocation,
-- eventing is represented as immediate command output and doctor checks,
-- no asynchronous reconciliation loop exists yet.
+- execution is synchronous per CLI invocation,
+- no long-lived reconciliation controller loop exists yet.
 
 ## 9. AuthN/AuthZ
 
-There is no built-in authentication or authorization layer in the current codebase.
+No built-in authentication/authorization layer exists.
 
-- CLI operates with local process permissions,
-- runtime integrations inherit host/user permissions,
-- secret modeling exists in API types, but secret materialization/integration flows are not implemented in the current backend logic.
+- commands execute with local process permissions,
+- runtime integrations inherit host/Kubernetes credentials from execution environment,
+- secret references are modeled in schema but secret store integrations are not implemented end-to-end.
 
 ## 10. Testing strategy (implemented)
 
-- unit tests for validator, planner, locking, doctor model;
-- golden/unit tests for compose, ssh-systemd, kubernetes, terraform, and ansible artifact rendering;
-- plugin tests for cometbft artifact generation and deterministic output;
-- app-layer tests for dry-run behavior, idempotence, runtime execution/observe fallback;
-- CLI integration/regression tests for smoke flow and lock contention behavior.
+- unit tests for validation/planner/lock/model utilities,
+- golden tests for renderer/backends/plugins,
+- app-layer tests for dry-run/idempotence/runtime gates/fallbacks,
+- integration/regression tests for CLI user flows and lock contention.

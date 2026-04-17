@@ -9,6 +9,7 @@ This document is implementation-focused and aligned with current repository beha
 - Go `1.22+`
 - Optional: Docker + Compose plugin for compose runtime flags
 - Optional: SSH connectivity + `systemctl` on targets for ssh-systemd runtime flags
+- Optional: `kubectl` for kubernetes runtime observation
 
 ### Bootstrap
 
@@ -21,57 +22,68 @@ go mod download
 ### Validate + render + plan loop
 
 ```bash
-go run ./cmd/bgorch validate -f examples/generic-single-compose.yaml
-go run ./cmd/bgorch render   -f examples/generic-single-compose.yaml -o .bgorch/render
-go run ./cmd/bgorch plan     -f examples/generic-single-compose.yaml
+chainops validate -f examples/generic-single-compose.yaml
+chainops render   -f examples/generic-single-compose.yaml -o yaml
+chainops plan     -f examples/generic-single-compose.yaml
 ```
 
 ### Apply loop
 
 ```bash
 # Dry-run first
-go run ./cmd/bgorch apply -f examples/generic-single-compose.yaml -o .bgorch/render --dry-run
+chainops apply -f examples/generic-single-compose.yaml --dry-run
 
-# Real apply
-go run ./cmd/bgorch apply -f examples/generic-single-compose.yaml -o .bgorch/render
+# Real apply (requires explicit confirmation in non-interactive mode)
+chainops apply -f examples/generic-single-compose.yaml --yes
 ```
 
 ### Runtime compose loop (optional)
 
 ```bash
-go run ./cmd/bgorch apply  -f examples/generic-single-compose.yaml -o .bgorch/render --runtime-exec
-go run ./cmd/bgorch status -f examples/generic-single-compose.yaml -o .bgorch/render --observe-runtime
-go run ./cmd/bgorch doctor -f examples/generic-single-compose.yaml -o .bgorch/render --observe-runtime
+chainops apply  -f examples/generic-single-compose.yaml --runtime-exec --yes
+chainops status -f examples/generic-single-compose.yaml --observe-runtime
+chainops doctor -f examples/generic-single-compose.yaml --observe-runtime
 ```
 
 ### Runtime SSH/systemd loop (optional)
 
 ```bash
-go run ./cmd/bgorch apply  -f examples/generic-single-ssh-systemd.yaml -o .bgorch/render --runtime-exec
-go run ./cmd/bgorch status -f examples/generic-single-ssh-systemd.yaml -o .bgorch/render --observe-runtime
-go run ./cmd/bgorch doctor -f examples/generic-single-ssh-systemd.yaml -o .bgorch/render --observe-runtime
+chainops apply  -f examples/generic-single-ssh-systemd.yaml --runtime-exec --yes
+chainops status -f examples/generic-single-ssh-systemd.yaml --observe-runtime
+chainops doctor -f examples/generic-single-ssh-systemd.yaml --observe-runtime
+```
+
+### Runtime kubernetes observation loop (optional)
+
+```bash
+chainops status -f examples/generic-single-kubernetes.yaml --observe-runtime
+chainops doctor -f examples/generic-single-kubernetes.yaml --observe-runtime
 ```
 
 ## Running Specific Subsystems
 
 ### Plugin behavior only
 
-Use plugin tests:
-
 ```bash
-go test ./internal/chain/genericprocess ./internal/chain/cometbft -v
+go test ./internal/chain/... -v
 ```
 
-### Backend rendering only
+### Backend rendering/observation only
 
 ```bash
-go test ./internal/backend/compose ./internal/backend/sshsystemd ./internal/backend/kubernetes ./internal/backend/terraform ./internal/backend/ansible -v
+go test ./internal/backend/... -v
 ```
 
 ### Planner/state semantics only
 
 ```bash
 go test ./internal/planner ./internal/state -v
+```
+
+### Config precedence only
+
+```bash
+go test ./internal/config -v
 ```
 
 ### CLI end-to-end smoke/regression
@@ -84,30 +96,31 @@ go test ./test/integration ./test/regression -v
 
 ### Snapshot and lock inspection
 
-- state directory: `.bgorch/state`
+- state directory (default): `.chainops/state`
 - snapshot files: `<cluster>--<backend>.json`
 - lock files: `<cluster>--<backend>.lock`
 
 Inspect with:
 
 ```bash
-ls -la .bgorch/state
-cat .bgorch/state/<cluster>--<backend>.json
+ls -la .chainops/state
+cat .chainops/state/<cluster>--<backend>.json
 ```
 
 ### Rendered artifact inspection
 
 ```bash
-find .bgorch/render -type f | sort
+find .chainops/render -type f | sort
 ```
 
-### Runtime compose failures
+### Runtime failures
 
-When `--runtime-exec` or `--observe-runtime` fails on compose backend:
+When runtime flags fail (`--runtime-exec` / `--observe-runtime` / `--require-runtime`):
 
-- ensure Docker daemon is running,
-- ensure compose file exists in `--output-dir`,
-- rerun without runtime flags to isolate local-state path issues.
+- confirm backend actually implements the required capability,
+- confirm rendered artifacts exist,
+- confirm runtime binaries are available (`docker`, `ssh`, `kubectl`),
+- rerun without runtime flags to isolate local-state/core pipeline behavior.
 
 ## Testing Workflow
 
@@ -135,9 +148,10 @@ make verify
 
 Repository scripts expect deterministic outputs:
 
-- sorted artifacts and service lists in backends/plugins,
-- stable deterministic outputs for backend renderers (compose, ssh-systemd, kubernetes, terraform, ansible),
-- no unformatted Go files.
+- sorted artifacts/services for stable tests,
+- stable golden outputs for renderers and help text,
+- no unformatted Go files,
+- no side effects in `plan` and canonical `render` mode.
 
 ## Migrations / Seed Data
 
@@ -150,5 +164,5 @@ No automated release pipeline is implemented in this repository.
 Current release practice is manual:
 
 1. run `make verify`,
-2. build binary from `cmd/bgorch`,
+2. build binaries from `cmd/chainops` (and optionally alias `cmd/bgorch`),
 3. publish artifacts/changelog through external workflow.

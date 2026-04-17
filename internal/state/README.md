@@ -1,6 +1,6 @@
 # `internal/state`
 
-State package provides local snapshot persistence and apply locking.
+Local snapshot persistence and apply lock primitives.
 
 ## Snapshot Model
 
@@ -9,16 +9,21 @@ State package provides local snapshot persistence and apply locking.
 - desired services (`hash(json(service))`)
 - desired artifacts (`hash(content)`)
 
-Used by planner to compute create/update/delete/noop diff.
+Planner consumes this snapshot to compute `create/update/delete/noop` diff.
 
 ## Lock Model
 
-- lock key is `(cluster, backend)`
-- lock file: `.bgorch/state/<cluster>--<backend>.lock`
-- acquisition is atomic via `O_CREATE|O_EXCL`
-- lock release is idempotent
+- lock key: `(cluster, backend)`
+- lock file: `<state-dir>/<cluster>--<backend>.lock`
+- acquisition: atomic (`O_CREATE|O_EXCL`)
+- release: idempotent (`sync.Once`)
+
+## Default State Dirs
+
+- `chainops`: `.chainops/state`
+- legacy `bgorch`: `.bgorch/state`
 
 ## Scope
 
-This model protects local concurrent applies on a single machine.
+This protects concurrent applies on one machine.
 It does not provide distributed lock/state coordination.

@@ -88,6 +88,7 @@ type model struct {
 	resultFocus     resultFocus
 }
 
+// New builds the legacy interactive model backed by the app service.
 func New(application *app.App) model {
 	uiStyles := newStyles()
 	keys := newKeyMap()

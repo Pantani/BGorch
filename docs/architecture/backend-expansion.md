@@ -27,7 +27,7 @@ Não implementado:
 
 | Camada | Dono | Responsabilidade | Não deve fazer |
 |---|---|---|---|
-| Core (`internal/app`, planner/state) | BGorch core | validação final, plan, lock, apply orchestration, status/doctor | lógica específica de chain ou runtime interno de ferramenta externa |
+| Core (`internal/app`, planner/state) | Chainops core | validação final, plan, lock, apply orchestration, status/doctor | lógica específica de chain ou runtime interno de ferramenta externa |
 | Plugin de chain | `internal/chain/*` | validação/normalização de família, render específico de chain | provisionamento de infra ou gestão de runtime backend |
 | Runtime backend | `docker-compose`, `ssh-systemd`, `kubernetes` | traduzir desired state para runtime e observar execução | virar semântica de protocolo/chain |
 | Infra adapter | `terraform` | provisionar recursos base (rede, VM, disco, cluster) | substituir reconciler de processos |

@@ -50,12 +50,14 @@ type Service struct {
 	HealthCheck   *HealthCheck      `json:"healthCheck,omitempty"`
 }
 
+// PortBinding models one runtime port exposure for a service.
 type PortBinding struct {
 	ContainerPort int    `json:"containerPort"`
 	HostPort      int    `json:"hostPort,omitempty"`
 	Protocol      string `json:"protocol,omitempty"`
 }
 
+// VolumeMount binds a volume source to a service path.
 type VolumeMount struct {
 	Source   string `json:"source"`
 	Target   string `json:"target"`
@@ -63,16 +65,19 @@ type VolumeMount struct {
 	ReadOnly bool   `json:"readOnly,omitempty"`
 }
 
+// Volume describes a desired runtime volume declaration.
 type Volume struct {
 	Name     string `json:"name"`
 	Driver   string `json:"driver,omitempty"`
 	External bool   `json:"external,omitempty"`
 }
 
+// Network represents a named runtime network attachment domain.
 type Network struct {
 	Name string `json:"name"`
 }
 
+// HealthCheck captures backend-agnostic probe settings for a service.
 type HealthCheck struct {
 	Test           []string `json:"test,omitempty"`
 	IntervalSec    int      `json:"intervalSec,omitempty"`
