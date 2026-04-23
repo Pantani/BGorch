@@ -19,7 +19,7 @@ Backends translate plugin output + spec into runtime-specific desired state and 
 
 - `compose`: container-mode backend; render + runtime exec/observe.
 - `sshsystemd`: host-mode backend; render + runtime exec/observe via SSH/systemctl.
-- `kubernetes`: manifest render + runtime observe (`kubectl`), sem runtime exec.
+- `kubernetes`: manifest render + runtime observe (`kubectl`), without runtime exec.
 - `terraform`: deterministic infrastructure adapter scaffold (artifact mode).
 - `ansible`: deterministic bootstrap adapter scaffold (artifact mode).
 

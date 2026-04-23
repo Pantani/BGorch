@@ -1,53 +1,53 @@
 # Personas
 
-## 1. Desenvolvedor Local
+## 1. Local Developer
 
-Objetivo:
+Goal:
 
-- subir nó/stack rápido
-- iterar e destruir com baixo custo
+- bring up a node/stack quickly
+- iterate and tear it down at low cost
 
-Fluxo esperado:
+Expected flow:
 
-- `init` com profile local-dev
-- `render` canônico para sanity check
+- `init` with the `local-dev` profile
+- canonical `render` for sanity checking
 - `apply --yes` e depois `destroy`
 
-## 2. Operador / DevOps / SRE
+## 2. Operator / DevOps / SRE
 
-Objetivo:
+Goal:
 
-- previsibilidade operacional e automação robusta
+- operational predictability and robust automation
 
-Fluxo esperado:
+Expected flow:
 
 - `doctor`
 - `plan --out`
-- revisão/aprovação
+- review/approval
 - `apply <plan-file> --yes`
 - `status`/`logs`
 
-## 3. Operador de Blockchain
+## 3. Blockchain Operator
 
-Objetivo:
+Goal:
 
-- escolher família/profile/backend sem aprender internals do engine
+- choose a family/profile/backend without learning engine internals
 
-Fluxo esperado:
+Expected flow:
 
 - `profile list`
 - `init --profile ...`
-- `explain` para campos críticos
+- `explain` for critical fields
 - `plan`/`apply`
 
-## 4. Autor de Plugin / Integrador
+## 4. Plugin Author / Integrator
 
-Objetivo:
+Goal:
 
-- ampliar suporte de famílias sem quebrar core
+- expand family support without breaking the core
 
-Fluxo esperado:
+Expected flow:
 
-- contrato estável via `pkg/pluginapi`
-- validação clara de plugin/backend
-- documentação e ADRs para evolução compatível
+- stable contract via `pkg/pluginapi`
+- clear plugin/backend validation
+- documentation and ADRs for compatible evolution

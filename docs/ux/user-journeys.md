@@ -1,6 +1,6 @@
 # User Journeys
 
-## Journey A: Primeiro Sucesso (Local Dev)
+## Journey A: First Success (Local Dev)
 
 ```bash
 chainops init --profile local-dev --name demo
@@ -10,24 +10,24 @@ chainops plan -f chainops.yaml
 chainops apply -f chainops.yaml --yes
 ```
 
-Resultado esperado:
+Expected result:
 
-- config válida
-- plano compreensível
-- apply seguro
+- valid config
+- understandable plan
+- safe apply
 
-## Journey B: Operação com Handoff de Plano
+## Journey B: Operation with Plan Handoff
 
 ```bash
 chainops plan -f chainops.yaml --out plan.json --output json
-# revisão/aprovação externa
+# external review/approval
 chainops apply plan.json --yes --output json
 ```
 
-Resultado esperado:
+Expected result:
 
-- trilha de auditoria
-- execução previsível em CI
+- audit trail
+- predictable CI execution
 
 ## Journey C: Troubleshooting
 
@@ -37,12 +37,12 @@ chainops logs -f chainops.yaml
 chainops doctor -f chainops.yaml --observe-runtime
 ```
 
-Resultado esperado:
+Expected result:
 
-- causa provável clara
-- hints acionáveis
+- clear probable cause
+- actionable hints
 
-## Journey D: Descoberta de Schema e Perfis
+## Journey D: Schema and Profile Discovery
 
 ```bash
 chainops explain ChainCluster
@@ -52,7 +52,7 @@ chainops profile list
 chainops profile show vm-single
 ```
 
-Resultado esperado:
+Expected result:
 
-- aprendizado incremental
-- menos tentativa e erro
+- incremental learning
+- less trial and error

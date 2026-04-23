@@ -5,46 +5,46 @@
 
 ## Context
 
-`bgorch` precisa operar múltiplas famílias de blockchain, múltiplos processos por nó lógico e múltiplos runtimes (Compose, host/systemd, Kubernetes), sem acoplamento do core a uma chain específica.
+`bgorch` must operate across multiple blockchain families, multiple processes per logical node, and multiple runtimes (Compose, host/systemd, Kubernetes), without coupling the core to any specific chain.
 
-Também é requisito explícito que o produto não seja apenas:
-- provider Terraform,
-- coleção de playbooks Ansible,
-- wrapper raso de docker compose.
+It is also an explicit requirement that the product not be only:
+- a Terraform provider,
+- a collection of Ansible playbooks,
+- a thin Docker Compose wrapper.
 
 ## Decision
 
-Adotar core declarativo próprio em Go com os blocos:
+Adopt a first-party declarative core in Go with these building blocks:
 
-1. **API versionada** (`v1alpha1`) para desired state.
-2. **Validação + normalização** antes de qualquer render/plan.
-3. **Planner** que compara desired state com snapshot observado/armazenado.
-4. **Renderer** determinístico de artefatos de backend.
-5. **Abstração de plugin** (família de chain) separada da abstração de backend (runtime/alvo).
-6. **Estado local inicial** em arquivos JSON com possibilidade de evolução para backend transacional (SQLite/Postgres/etcd).
+1. **Versioned API** (`v1alpha1`) for desired state.
+2. **Validation + normalization** before any render/plan step.
+3. **Planner** that compares desired state with observed/stored snapshot state.
+4. **Deterministic renderer** for backend artifacts.
+5. **Plugin abstraction** (chain family) separated from the backend abstraction (runtime/target).
+6. **Initial local state** stored in JSON files with room to evolve toward a transactional backend (SQLite/Postgres/etcd).
 
 ## Rationale
 
-- Permite convergência idempotente e drift detection no próprio produto.
-- Preserva separação entre semântica de chain e semântica de runtime.
-- Mantém fronteiras claras para integrar Terraform/Ansible como adapters e não como núcleo.
+- Enables idempotent convergence and drift detection within the product itself.
+- Preserves separation between chain semantics and runtime semantics.
+- Keeps clear boundaries so Terraform/Ansible integrate as adapters, not as the core.
 
 ## Consequences
 
-### Positivas
-- Arquitetura extensível por plugins/backends sem reescrever core.
-- Contrato claro para `plan` first.
-- Melhor testabilidade (validação, planner, render, golden).
+### Positive
+- Extensible architecture through plugins/backends without rewriting the core.
+- Clear `plan`-first contract.
+- Better testability (validation, planner, render, golden tests).
 
-### Negativas
-- Mais código inicial do que acoplar direto em ferramentas prontas.
-- Necessidade de manter compatibilidade de API/versionamento desde cedo.
+### Negative
+- More upfront code than coupling directly to existing tools.
+- Need to preserve API/versioning compatibility early.
 
 ## Rejected alternatives
 
 1. **Terraform-first core**
-   - Rejeitado: Terraform é excelente para provisionamento, mas inadequado como runtime reconciler de processos blockchain.
+   - Rejected: Terraform is excellent for provisioning, but inadequate as a runtime reconciler for blockchain processes.
 2. **Ansible-first core**
-   - Rejeitado: playbooks não substituem um domínio declarativo com estado/plan/drift cross-backend.
+   - Rejected: playbooks do not replace a declarative domain with cross-backend state/plan/drift.
 3. **Compose-first product**
-   - Rejeitado: prenderia o modelo ao runtime local e limitaria evolução para host/Kubernetes.
+   - Rejected: it would bind the model to the local runtime and limit evolution toward host/Kubernetes targets.

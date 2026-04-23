@@ -1,39 +1,39 @@
 # Error Style Guide
 
-## Objetivo
+## Goal
 
-Mensagens devem responder, nessa ordem:
+Messages should answer, in this order:
 
-1. O que falhou
-2. Causa provável
-3. Como corrigir
-4. Próximo comando recomendado
+1. What failed
+2. Probable cause
+3. How to fix it
+4. Recommended next command
 
 ## Template
 
 ```text
-<Title claro>
-Cause: <causa provável>
-Hint: <como corrigir>
-Next: <comando recomendado>
+<Clear title>
+Cause: <probable cause>
+Hint: <how to fix it>
+Next: <recommended command>
 ```
 
-## Regras
+## Rules
 
-- Evitar mensagens genéricas (`invalid config`, `failed`).
-- Incluir campo/path quando aplicável.
-- Priorizar ação concreta, não teoria.
-- Não esconder impacto de flags conflitantes.
+- Avoid generic messages (`invalid config`, `failed`).
+- Include the field/path when applicable.
+- Prioritize concrete action, not theory.
+- Do not hide the impact of conflicting flags.
 
-## Exemplos
+## Examples
 
-### Ruim
+### Bad
 
 ```text
 invalid config
 ```
 
-### Bom
+### Good
 
 ```text
 Invalid CLI configuration.
@@ -42,13 +42,13 @@ Hint: Check --config path, environment variables, and flag values.
 Next: chainops context show
 ```
 
-### Ruim
+### Bad
 
 ```text
 unsupported output
 ```
 
-### Bom
+### Good
 
 ```text
 Unsupported output format.
@@ -57,12 +57,12 @@ Hint: Use table, json, or yaml.
 Next: chainops plan -f chainops.yaml --output json
 ```
 
-## Situações críticas
+## Critical Situations
 
-- Operações destrutivas devem mencionar explicitamente confirmação/`--yes`.
-- Erros de preflight devem sempre sugerir `doctor` quando aplicável.
+- Destructive operations must explicitly mention confirmation/`--yes`.
+- Preflight errors should always suggest `doctor` when applicable.
 
-## Convenções no código
+## Code Conventions
 
-- Use `internal/output.ActionableError(...)` para erros de UX.
-- Preserve mensagens técnicas completas em logs/stack internos quando necessário.
+- Use `internal/output.ActionableError(...)` for UX errors.
+- Preserve complete technical messages in internal logs/stacks when necessary.

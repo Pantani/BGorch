@@ -2,76 +2,76 @@
 
 Status date: **2026-04-16**.
 
-## Objetivo
+## Goal
 
-Definir o desenho de expansão de backend mantendo o core declarativo em Go como control plane principal.
+Define the backend expansion design while keeping the Go declarative core as the primary control plane.
 
-Este documento descreve fronteiras e fluxo-alvo e já reflete a implementação MVP artifact-first de `kubernetes`, `terraform` e `ansible`.
+This document describes boundaries and the target flow, and already reflects the artifact-first MVP implementation of `kubernetes`, `terraform`, and `ansible`.
 
-## Estado verificado hoje
+## State Verified Today
 
-Implementado:
+Implemented:
 
 - runtime/artifact backends: `docker-compose`, `ssh-systemd`, `kubernetes`, `terraform`, `ansible`;
-- contratos opcionais: `RuntimeExecutor`, `RuntimeObserver`;
-- comandos core: `validate`, `render`, `plan`, `apply`, `status`, `doctor`;
-- lock/snapshot local no core.
+- optional contracts: `RuntimeExecutor`, `RuntimeObserver`;
+- core commands: `validate`, `render`, `plan`, `apply`, `status`, `doctor`;
+- local lock/snapshot in the core.
 
-Não implementado:
+Not implemented:
 
-- runtime exec para `kubernetes`, `terraform` e `ansible`;
-- runtime observe para `terraform` e `ansible`;
-- lock distribuído/reconciler contínuo.
+- runtime exec for `kubernetes`, `terraform`, and `ansible`;
+- runtime observe for `terraform` and `ansible`;
+- distributed lock / continuous reconciler.
 
-## Modelo de responsabilidades
+## Responsibility Model
 
-| Camada | Dono | Responsabilidade | Não deve fazer |
+| Layer | Owner | Responsibility | Must Not Do |
 |---|---|---|---|
-| Core (`internal/app`, planner/state) | Chainops core | validação final, plan, lock, apply orchestration, status/doctor | lógica específica de chain ou runtime interno de ferramenta externa |
-| Plugin de chain | `internal/chain/*` | validação/normalização de família, render específico de chain | provisionamento de infra ou gestão de runtime backend |
-| Runtime backend | `docker-compose`, `ssh-systemd`, `kubernetes` | traduzir desired state para runtime e observar execução | virar semântica de protocolo/chain |
-| Infra adapter | `terraform` | provisionar recursos base (rede, VM, disco, cluster) | substituir reconciler de processos |
-| Host config adapter | `ansible` | bootstrap/config de host, distribuição de arquivos, handlers | substituir control plane declarativo |
+| Core (`internal/app`, planner/state) | Chainops core | final validation, plan, lock, apply orchestration, status/doctor | chain-specific logic or internal runtime logic of external tools |
+| Chain plugin | `internal/chain/*` | family validation/normalization, chain-specific rendering | infrastructure provisioning or backend runtime management |
+| Runtime backend | `docker-compose`, `ssh-systemd`, `kubernetes` | translate desired state into runtime resources and observe execution | become protocol/chain semantics |
+| Infra adapter | `terraform` | provision base resources (network, VM, disk, cluster) | replace the process reconciler |
+| Host config adapter | `ansible` | host bootstrap/config, file distribution, handlers | replace the declarative control plane |
 
-## Fronteiras por backend alvo
+## Boundaries per Target Backend
 
-### Kubernetes (runtime backend)
+### Kubernetes (Runtime Backend)
 
-Escopo:
+Scope:
 
-- traduzir workloads para recursos Kubernetes adequados a stateful;
-- suportar observação de execução no cluster.
+- translate workloads into Kubernetes resources suitable for stateful systems;
+- support execution observation in the cluster.
 
-Fora de escopo:
+Out of scope:
 
-- provisionar cluster;
-- assumir lógica de chain no backend.
+- provisioning the cluster;
+- embedding chain logic in the backend.
 
-### Terraform (infra adapter)
+### Terraform (Infra Adapter)
 
-Escopo:
+Scope:
 
-- criar/atualizar recursos de infraestrutura;
-- devolver outputs consumíveis por runtime/config.
+- create/update infrastructure resources;
+- return outputs consumable by runtime/config layers.
 
-Fora de escopo:
+Out of scope:
 
-- operação de processos blockchain;
-- gerenciamento de lifecycle de serviço no host/container.
+- blockchain process operation;
+- host/container service lifecycle management.
 
-### Ansible (host config adapter)
+### Ansible (Host Config Adapter)
 
-Escopo:
+Scope:
 
-- bootstrap de host, diretórios, templates, units e handlers;
-- aplicação idempotente de configuração de host.
+- host bootstrap, directories, templates, units, and handlers;
+- idempotent host configuration application.
 
-Fora de escopo:
+Out of scope:
 
-- planner/reconciler central;
-- estado autoritativo global da plataforma.
+- the central planner/reconciler;
+- the platform's global authoritative state.
 
-## Fluxo de integração proposto
+## Proposed Integration Flow
 
 ```text
 Spec -> Validate -> Plugin Build -> Backend BuildDesired -> Plan
@@ -85,51 +85,51 @@ Spec -> Validate -> Plugin Build -> Backend BuildDesired -> Plan
      -> optional runtime/adapter observation
 ```
 
-## Estratégia de rollout (estado atual e próximos passos)
+## Rollout Strategy (Current State and Next Steps)
 
-1. **Kubernetes backend (estado atual)**:
-   - tradução determinística de desired state implementada;
-   - observação runtime opcional implementada (`status/doctor` via `kubectl`);
-   - próximo passo: execução runtime opcional no fluxo `apply`.
-2. **Terraform adapter (estado atual)**:
-   - scaffold determinístico de artefatos implementado;
-   - próximo passo: estágios explícitos de plan/apply e import de outputs.
-3. **Ansible adapter (estado atual)**:
-   - render determinístico de inventory/group_vars/playbook implementado;
-   - próximo passo: execução controlada e coleta estruturada de resultados.
+1. **Kubernetes backend (current state)**:
+   - deterministic desired-state translation implemented;
+   - optional runtime observation implemented (`status/doctor` via `kubectl`);
+   - next step: optional runtime execution in the `apply` flow.
+2. **Terraform adapter (current state)**:
+   - deterministic artifact scaffold implemented;
+   - next step: explicit plan/apply stages and output import.
+3. **Ansible adapter (current state)**:
+   - deterministic inventory/group_vars/playbook rendering implemented;
+   - next step: controlled execution and structured result collection.
 
-## Riscos operacionais
+## Operational Risks
 
-1. Divergência entre estado de infra e estado de runtime.
-2. Aumento de tempo de convergência com múltiplos estágios.
-3. Falhas parciais com rollback complexo entre ferramentas.
-4. Dificuldade de troubleshooting sem correlação de eventos entre camadas.
+1. Divergence between infrastructure state and runtime state.
+2. Increased convergence time with multiple stages.
+3. Partial failures with complex cross-tool rollback.
+4. Troubleshooting difficulty without event correlation across layers.
 
-## Riscos de segurança
+## Security Risks
 
-1. Exposição de credenciais (cloud tokens, SSH keys, kubeconfig).
-2. Execução remota com privilégios excessivos.
-3. Vazamento de segredo em logs/erro de subprocesso.
-4. Dependência em ferramentas externas sem hardening uniforme.
+1. Credential exposure (cloud tokens, SSH keys, kubeconfig).
+2. Remote execution with excessive privileges.
+3. Secret leakage in logs/subprocess errors.
+4. Dependence on external tools without uniform hardening.
 
-Controles recomendados:
+Recommended controls:
 
-- mascaramento de segredo em output de comando;
-- princípio de menor privilégio para credenciais;
-- validação de contexto/target antes de mutação;
-- trilha de auditoria mínima por comando/target.
+- secret masking in command output;
+- least-privilege credentials;
+- context/target validation before mutation;
+- minimum audit trail per command/target.
 
-## Limites do MVP e pendências
+## MVP Limits and Open Items
 
-Limites atuais:
+Current limits:
 
-- estado/lock local (sem coordenação distribuída);
-- sem reconciler contínuo em background;
-- capabilities variam entre backends.
+- local state/lock (no distributed coordination);
+- no background continuous reconciler;
+- capabilities vary across backends.
 
-Pendências abertas:
+Open items:
 
-1. Contrato explícito para estágios de infra/config (`terraform`/`ansible`).
-2. Política de rollback/repair cross-backend.
-3. Modelo unificado de observação (snapshot local vs estado remoto).
-4. Estratégia de secret stores externos (Vault/KMS/SOPS) integrada ao fluxo.
+1. Explicit contract for infra/config stages (`terraform`/`ansible`).
+2. Cross-backend rollback/repair policy.
+3. Unified observation model (local snapshot vs remote state).
+4. External secret-store strategy (Vault/KMS/SOPS) integrated into the flow.

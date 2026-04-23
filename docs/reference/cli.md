@@ -36,15 +36,15 @@ chainops apply plan.json --yes
 
 ## Output Modes
 
-Comandos principais aceitam `--output` com:
+Main commands accept `--output` with:
 
-- `table` (default para humanos)
-- `json` (automação)
-- `yaml` (auditoria/leitura)
+- `table` (default for humans)
+- `json` (automation)
+- `yaml` (auditability/readability)
 
 ## Important Flags
 
-Globais:
+Global:
 
 - `--config`
 - `-f, --file`
@@ -53,16 +53,16 @@ Globais:
 - `--non-interactive`
 - `--yes`
 
-Comandos:
+Per-command:
 
 - `plan --out <plan.json|plan.yaml>`
 - `apply [plan-file]`
 - `apply --runtime-exec`
-- `apply --require-runtime` (implica runtime-exec e falha se runtime não estiver disponível)
+- `apply --require-runtime` (implies runtime-exec and fails if runtime is unavailable)
 - `status --observe-runtime`
-- `status --require-runtime` (implica observe-runtime e falha se runtime não estiver disponível)
+- `status --require-runtime` (implies observe-runtime and fails if runtime is unavailable)
 - `doctor --observe-runtime`
-- `doctor --require-runtime` (implica observe-runtime e falha se runtime não estiver disponível)
+- `doctor --require-runtime` (implies observe-runtime and fails if runtime is unavailable)
 - `render --write-artifacts`
 
 ## Render Modes
@@ -80,7 +80,7 @@ chainops render -f chainops.yaml --format json
 chainops render -f chainops.yaml --write-artifacts --artifacts-dir .chainops/render
 ```
 
-Compat legado:
+Legacy compatibility:
 
 ```bash
 chainops render -f chainops.yaml -o .chainops/render
@@ -88,19 +88,19 @@ chainops render -f chainops.yaml -o .chainops/render
 
 ## Plan / Apply
 
-### Plan side-effect free
+### Side-Effect-Free Plan
 
 ```bash
 chainops plan -f chainops.yaml
 ```
 
-### Persist plan for handoff
+### Persist a Plan for Handoff
 
 ```bash
 chainops plan -f chainops.yaml --out plan.json
 ```
 
-### Apply using saved plan
+### Apply Using a Saved Plan
 
 ```bash
 chainops apply plan.json --yes
@@ -109,10 +109,10 @@ chainops apply plan.json --yes
 ### Strict Runtime Mode
 
 ```bash
-# apply exige e executa runtime
+# apply requires and executes runtime
 chainops apply -f chainops.yaml --require-runtime --yes
 
-# status/doctor exigem observação de runtime
+# status/doctor require runtime observation
 chainops status -f chainops.yaml --require-runtime
 chainops doctor -f chainops.yaml --require-runtime
 ```
@@ -137,4 +137,4 @@ chainops completion powershell > chainops.ps1
 
 ## Legacy Compatibility
 
-`bgorch` permanece funcional para migração gradual. Consulte [docs/migrations/cli-redesign.md](../migrations/cli-redesign.md).
+`bgorch` remains functional for gradual migration. See [docs/migrations/cli-redesign.md](../migrations/cli-redesign.md).

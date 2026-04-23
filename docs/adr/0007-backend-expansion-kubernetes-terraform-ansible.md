@@ -1,106 +1,106 @@
-# ADR 0007: Expansão de Backends (Kubernetes + adapters Terraform/Ansible)
+# ADR 0007: Backend Expansion (Kubernetes + Terraform/Ansible Adapters)
 
 - Status: Accepted
 - Date: 2026-04-16
 
-## Contexto
+## Context
 
-O código atual já possui:
+The current codebase already has:
 
-- contrato mínimo de backend (`ValidateTarget`, `BuildDesired`);
-- contratos opcionais de runtime (`RuntimeExecutor`, `RuntimeObserver`);
-- backends implementados: `docker-compose`, `ssh-systemd`, `kubernetes`, `terraform`, `ansible`.
+- a minimum backend contract (`ValidateTarget`, `BuildDesired`);
+- optional runtime contracts (`RuntimeExecutor`, `RuntimeObserver`);
+- implemented backends: `docker-compose`, `ssh-systemd`, `kubernetes`, `terraform`, `ansible`.
 
-Na fase atual, a expansão foi iniciada com:
+At the current stage, expansion started with:
 
-1. `kubernetes` como backend de runtime em modo artifact-first;
-2. `terraform` como adapter de provisionamento em modo artifact-first;
-3. `ansible` como adapter de bootstrap/configuração em modo artifact-first.
+1. `kubernetes` as an artifact-first runtime backend;
+2. `terraform` as an artifact-first provisioning adapter;
+3. `ansible` as an artifact-first bootstrap/configuration adapter.
 
-Sem essas fronteiras, há risco de:
+Without these boundaries, there is a risk of:
 
-- acoplar o core a ferramentas específicas;
-- empurrar orchestration de processos para Terraform/Ansible;
-- aumentar blast radius de `apply` com responsabilidades misturadas.
+- coupling the core to specific tools;
+- pushing process orchestration into Terraform/Ansible;
+- increasing the `apply` blast radius through mixed responsibilities.
 
-## Decisão
+## Decision
 
-Adotar modelo explícito de três classes de backend, com responsabilidades separadas:
+Adopt an explicit model with three backend classes and separate responsibilities:
 
 1. **Runtime backend** (`docker-compose`, `ssh-systemd`, `kubernetes`)
 2. **Infra adapter** (`terraform`)
 3. **Host config adapter** (`ansible`)
 
-### Fronteiras obrigatórias
+### Mandatory Boundaries
 
 - `kubernetes`:
-  - responsável por materializar e observar workloads/state no cluster;
-  - não assume semântica de chain/protocolo.
+  - responsible for materializing and observing workloads/state in the cluster;
+  - does not assume chain/protocol semantics.
 - `terraform`:
-  - responsável por provisionar infraestrutura (VM, rede, disco, cluster);
-  - não executa reconciliação de processos de node blockchain.
+  - responsible for provisioning infrastructure (VM, network, disk, cluster);
+  - does not reconcile blockchain node processes.
 - `ansible`:
-  - responsável por bootstrap/configuração de host (dirs, units, arquivos, handlers);
-  - não substitui planner/reconciler do core.
+  - responsible for host bootstrap/configuration (dirs, units, files, handlers);
+  - does not replace the core planner/reconciler.
 
-### Semântica de integração
+### Integration Semantics
 
-- `plan` continua obrigatório no core antes de mutações.
-- `apply` do core mantém lock/snapshot local como mecanismo mínimo de segurança.
-- execução runtime permanece opt-in por capability do backend.
-- adapters de infra/config devem expor resultados observáveis ao `status/doctor` sem assumir ownership do estado do core.
+- `plan` remains mandatory in the core before mutations.
+- Core `apply` keeps local lock/snapshot as the minimum safety mechanism.
+- Runtime execution remains opt-in through backend capability.
+- Infra/config adapters must expose observable results to `status/doctor` without taking ownership of core state.
 
-## Racional
+## Rationale
 
-- Preserva separação de concerns (core vs runtime vs infra vs bootstrap).
-- Permite evolução incremental sem reescrever contratos atuais.
-- Mantém idempotência e diagnósticos no control plane principal (Go core).
+- Preserves separation of concerns (core vs runtime vs infra vs bootstrap).
+- Enables incremental evolution without rewriting current contracts.
+- Keeps idempotency and diagnostics in the primary control plane (Go core).
 
-## Consequências
+## Consequences
 
-### Positivas
+### Positive
 
-- crescimento para Kubernetes/Terraform/Ansible com baixo acoplamento;
-- compatibilidade futura com múltiplos ambientes operacionais;
-- menor risco de lock-in arquitetural.
+- growth toward Kubernetes/Terraform/Ansible with low coupling;
+- future compatibility with multiple operational environments;
+- lower risk of architectural lock-in.
 
-### Negativas
+### Negative
 
-- diferença de capability entre backends aumenta complexidade de UX;
-- maior esforço de testes de integração cruzada (backend x plugin x runtime);
-- necessidade de documentação forte de limites por backend.
+- backend capability differences increase UX complexity;
+- higher cross-integration testing effort (backend x plugin x runtime);
+- need for strong documentation of backend limits.
 
-## Riscos operacionais e de segurança
+## Operational and Security Risks
 
-1. **Drift multi-camada**: infra provisionada, mas runtime divergente.
-2. **Credenciais sensíveis**: tokens cloud, chaves SSH, kubeconfig, secrets de chain.
-3. **Comandos destrutivos**: `terraform apply/destroy` e handlers remotos amplos.
-4. **Escalada de privilégio**: `ansible become`, acesso cluster-admin em Kubernetes.
-5. **Diagnóstico inconsistente**: `status/doctor` sem distinguir snapshot local e estado remoto observado.
+1. **Multi-layer drift**: infrastructure is provisioned, but runtime diverges.
+2. **Sensitive credentials**: cloud tokens, SSH keys, kubeconfig, chain secrets.
+3. **Destructive commands**: broad `terraform apply/destroy` and remote handlers.
+4. **Privilege escalation**: `ansible become`, cluster-admin access in Kubernetes.
+5. **Inconsistent diagnostics**: `status/doctor` does not distinguish local snapshot from observed remote state.
 
-Mitigações mínimas propostas:
+Proposed minimum mitigations:
 
-- execução explícita por flags/capabilities (sem efeitos implícitos);
-- mascaramento de segredos em logs e erros;
-- validação prévia de target/contexto antes de mutar;
-- observabilidade padronizada por backend (resumo + detalhes);
-- gates de verificação (`verify`) antes de integração.
+- explicit execution through flags/capabilities (no implicit effects);
+- secret masking in logs and errors;
+- target/context validation before mutation;
+- standardized observability per backend (summary + details);
+- verification gates (`verify`) before integration.
 
-## Limites do MVP
+## MVP Limits
 
-Estado atual da implementação:
+Current implementation state:
 
-- `kubernetes` implementa `BuildDesired`, validação mínima e runtime observe (sem runtime exec);
-- `terraform` implementa `BuildDesired` e validação mínima (sem runtime exec/observe);
-- `ansible` implementa `BuildDesired` e validação mínima (sem runtime exec/observe);
-- lock distribuído e reconciler contínuo seguem fora de escopo.
+- `kubernetes` implements `BuildDesired`, minimum validation, and runtime observe (no runtime exec);
+- `terraform` implements `BuildDesired` and minimum validation (no runtime exec/observe);
+- `ansible` implements `BuildDesired` and minimum validation (no runtime exec/observe);
+- distributed locking and a continuous reconciler remain out of scope.
 
-## Próximos passos (propostos)
+## Next Steps (Proposed)
 
-1. Evoluir `kubernetes` para capability de runtime execution com semântica operacional explícita (runtime observe já implementado).
-2. Definir contrato de stages para `terraform` (plan/apply/output import) sem acoplar ao reconciler core.
-3. Definir contrato de stages para `ansible` (inventory/playbook/result mapping) com retorno estruturado para `status/doctor`.
-4. Adicionar matriz de testes de integração por capability (runtime/infra/config).
-5. Evoluir `status/doctor` para separar explicitamente:
-   - estado local (snapshot),
-   - estado observado em runtime/adapters.
+1. Evolve `kubernetes` toward runtime-execution capability with explicit operational semantics (runtime observe is already implemented).
+2. Define a staged contract for `terraform` (`plan/apply/output import`) without coupling it to the core reconciler.
+3. Define a staged contract for `ansible` (inventory/playbook/result mapping) with structured output for `status/doctor`.
+4. Add an integration-test matrix by capability (runtime/infra/config).
+5. Evolve `status/doctor` to explicitly separate:
+   - local state (snapshot),
+   - state observed in runtimes/adapters.

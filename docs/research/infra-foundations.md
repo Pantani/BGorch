@@ -1,8 +1,8 @@
 # Infra Foundations Research for BGorch
 
-## Escopo
+## Scope
 
-Pesquisa orientada por documentação oficial para guiar arquitetura do `bgorch` em:
+Research guided by official documentation to shape the architecture of `bgorch` across:
 
 1. Dockerfile / Docker Build
 2. Docker Compose
@@ -10,9 +10,9 @@ Pesquisa orientada por documentação oficial para guiar arquitetura do `bgorch`
 4. Terraform
 5. Kubernetes controllers/operators
 6. Kubernetes stateful workloads
-7. Go modules / organização de projeto em Go
+7. Go modules / Go project organization
 
-## Fontes oficiais
+## Official Sources
 
 ### Docker
 - [Dockerfile overview](https://docs.docker.com/build/concepts/dockerfile/)
@@ -54,206 +54,241 @@ Pesquisa orientada por documentação oficial para guiar arquitetura do `bgorch`
 
 ## 1) Dockerfile / Docker Build
 
-### Modelo mental
-Dockerfile descreve **build de imagem**; não é engine de operação contínua nem mecanismo de reconciliação de estado de cluster.
+### Mental model
 
-### Responsabilidade correta
-- Empacotar runtime e dependências de processo.
-- Produzir imagem reprodutível e pequena (multi-stage, base mínima, `.dockerignore`, pinning).
-- Definir defaults de execução (entrypoint/cmd/env/ports).
+A Dockerfile describes **image build**, not a continuous operations engine and not a cluster-state reconciliation mechanism.
 
-### Boas práticas relevantes
-- Multi-stage build e separação build/runtime.
-- Base image confiável e enxuta.
-- Evitar pacotes desnecessários.
-- Rodar como usuário não-root quando possível.
-- Build determinístico com versões explícitas.
+### Proper responsibility
 
-### O que não empurrar para Dockerfile
-- Lógica de bootstrap de ambiente externo.
-- Orquestração entre processos/nós.
-- Gestão de secrets (secret baked em imagem é anti-pattern).
+- Package the runtime and process dependencies.
+- Produce a small, reproducible image (multi-stage, minimal base, `.dockerignore`, version pinning).
+- Define execution defaults (entrypoint/cmd/env/ports).
 
-### Impacto no `bgorch`
-- Dockerfile fica como artefato de packaging por workload.
-- Core não depende de container: workload pode ser binário host.
-- Secrets entram via `SecretRef` em runtime, nunca no build.
+### Relevant best practices
+
+- Multi-stage builds and clear build/runtime separation.
+- Trusted, minimal base images.
+- Avoid unnecessary packages.
+- Run as a non-root user when possible.
+- Deterministic builds with explicit versions.
+
+### What should not be pushed into Dockerfile
+
+- External-environment bootstrap logic.
+- Process/node orchestration.
+- Secret management (baking secrets into images is an anti-pattern).
+
+### Impact on `bgorch`
+
+- Dockerfile stays a packaging artifact per workload.
+- The core does not depend on containers: a workload may be a host binary.
+- Secrets must enter through `SecretRef` at runtime, never during build.
 
 ---
 
 ## 2) Docker Compose
 
-### Modelo mental
-Compose é modelo declarativo para **aplicação multi-serviço local/simples**, com reconciliação via CLI (`docker compose up` reavalia config).
+### Mental model
 
-### Responsabilidade correta
-- Definir services, networks, volumes, healthcheck e restart policy.
-- Ambiente local/edge com estado simples.
-- Overlay/merge de arquivos por ambiente.
+Compose is a declarative model for **local/simple multi-service applications**, with CLI-driven reconciliation (`docker compose up` reevaluates configuration).
 
-### Boas práticas relevantes
-- Arquivo Compose canônico e versionável.
-- Named volumes para dados stateful.
-- Healthchecks explícitos e restart policy consistente.
-- Overrides por ambiente em arquivos separados.
+### Proper responsibility
 
-### O que não empurrar para Compose
-- Provisionamento de infraestrutura (VM, rede cloud, SG, storage externo).
-- Controle avançado de rollouts multi-cluster.
-- Política de reconciliação sofisticada por família de chain.
+- Define services, networks, volumes, health checks, and restart policy.
+- Support local/edge environments with relatively simple state.
+- Support environment-specific overlays/merges through separate files.
 
-### Impacto no `bgorch`
-- Compose é backend MVP de execução.
-- `bgorch` gera Compose deterministicamente a partir do desired state.
-- Core continua genérico, Compose só consome estado já resolvido.
+### Relevant best practices
+
+- Canonical, versionable Compose files.
+- Named volumes for stateful data.
+- Explicit health checks and consistent restart policy.
+- Environment overrides in separate files.
+
+### What should not be pushed into Compose
+
+- Infrastructure provisioning (VMs, cloud network, security groups, external storage).
+- Advanced multi-cluster rollout control.
+- Sophisticated reconciliation policy per chain family.
+
+### Impact on `bgorch`
+
+- Compose is an MVP execution backend.
+- `bgorch` generates Compose deterministically from desired state.
+- The core stays generic; Compose only consumes already-resolved state.
 
 ---
 
 ## 3) Ansible
 
-### Modelo mental
-Ansible é automação procedural/declarativa para configuração remota de hosts com inventário e playbooks/roles.
+### Mental model
 
-### Responsabilidade correta
-- Bootstrap de host.
-- Distribuição de arquivos/templates.
-- Setup de diretórios e serviços systemd.
-- Execução idempotente de tarefas (com check/diff mode para validação).
+Ansible is procedural/declarative automation for remote host configuration through inventory and playbooks/roles.
 
-### Boas práticas relevantes
-- Inventário claro (estático/dinâmico).
-- Reuso por roles.
-- Check mode/diff mode em pipelines.
-- Controle de variáveis e segredos com Vault/indireção.
+### Proper responsibility
 
-### O que não empurrar para Ansible
-- Control plane principal de reconciliação contínua do produto.
-- Modelo de estado global cross-backend.
-- Semântica de plugin de cadeia dentro de playbooks soltos.
+- Host bootstrap.
+- File/template distribution.
+- Directory and systemd service setup.
+- Idempotent task execution (with check/diff mode for validation).
 
-### Impacto no `bgorch`
-- Ansible entra como adapter de bootstrap/config host.
-- Planejamento e diff continuam no engine do `bgorch`.
-- `bgorch` decide *o que* aplicar; Ansible executa *como* no host.
+### Relevant best practices
+
+- Clear inventory model (static/dynamic).
+- Role-based reuse.
+- Check mode/diff mode in pipelines.
+- Variable and secret control through Vault/indirection.
+
+### What should not be pushed into Ansible
+
+- The product's primary continuous reconciliation control plane.
+- A cross-backend global state model.
+- Chain-plugin semantics embedded in loose playbooks.
+
+### Impact on `bgorch`
+
+- Ansible enters as a host bootstrap/config adapter.
+- Planning and diff stay in the `bgorch` engine.
+- `bgorch` decides *what* to apply; Ansible executes *how* on the host.
 
 ---
 
 ## 4) Terraform
 
-### Modelo mental
-Terraform é IaC para **recursos de infraestrutura** com `plan`/`apply`, estado e locking em backend.
+### Mental model
 
-### Responsabilidade correta
-- Provisionar infraestrutura base: rede, compute, storage, IAM, clusters.
-- Gerenciar drift de recursos de infra via estado.
-- Validar mudanças via `plan` antes de `apply`.
+Terraform is IaC for **infrastructure resources** with `plan`/`apply`, state, and backend locking.
 
-### Boas práticas relevantes
-- Workflow de two-step plan/apply em automação.
-- State remoto com lock e versionamento.
-- Estrutura de módulos padrão e estilo consistente.
-- `terraform validate` no CI.
+### Proper responsibility
 
-### O que não empurrar para Terraform
-- Operação runtime fina de processos blockchain.
-- Bootstrap detalhado de daemon e lifecycle de serviço.
-- Provisioners para tudo (HashiCorp trata provisioners como último recurso).
+- Provision base infrastructure: network, compute, storage, IAM, clusters.
+- Manage drift for infrastructure resources through state.
+- Validate changes through `plan` before `apply`.
 
-### Impacto no `bgorch`
-- Terraform será adapter de provisionamento (não core).
-- Core do `bgorch` mantém desired state operacional de node/workload.
-- Boundary claro: Terraform entrega “substrato”; `bgorch` entrega operação.
+### Relevant best practices
+
+- Two-step plan/apply workflow in automation.
+- Remote state with locking and versioning.
+- Standard module structure and consistent style.
+- `terraform validate` in CI.
+
+### What should not be pushed into Terraform
+
+- Fine-grained runtime operation of blockchain processes.
+- Detailed daemon bootstrap and service lifecycle management.
+- Provisioners for everything (HashiCorp treats provisioners as a last resort).
+
+### Impact on `bgorch`
+
+- Terraform is a provisioning adapter, not the core.
+- The `bgorch` core keeps the operational desired state of nodes/workloads.
+- Clear boundary: Terraform delivers the substrate; `bgorch` delivers operations.
 
 ---
 
 ## 5) Kubernetes controllers/operators
 
-### Modelo mental
-Kubernetes controllers seguem control-loop: observar estado atual e convergir para estado desejado. Operator é extensão desse padrão com CRDs + controller.
+### Mental model
 
-### Responsabilidade correta
-- Reconciliação declarativa idempotente.
-- Modelo `spec` (desired) + `status` (observed).
-- Automação de rotinas operacionais para domínio específico.
+Kubernetes controllers implement a control loop: observe current state and converge toward desired state. An operator extends that pattern with CRDs plus a controller.
 
-### Boas práticas relevantes
-- Separar responsabilidades entre controllers simples.
-- Evitar acoplamento excessivo de dados de app ao API server.
-- Usar CRDs para abstrações operacionais, não como banco de dados da aplicação.
+### Proper responsibility
 
-### O que não empurrar para controller/operator
-- Armazenamento arbitrário de dados de negócio.
-- Lógica monolítica que mistura todas as responsabilidades.
+- Idempotent declarative reconciliation.
+- `spec` (desired) + `status` (observed) model.
+- Automation of operational routines for a domain-specific system.
 
-### Impacto no `bgorch`
-- Core adota semântica de reconciliação inspirada em controller.
-- Modelo interno com desired/observed/diff/plan/apply/verify.
-- Futuro backend Kubernetes pode mapear diretamente para StatefulSets/Services/PVCs.
+### Relevant best practices
 
----
+- Separate responsibilities across small controllers.
+- Avoid excessive coupling of application data to the API server.
+- Use CRDs for operational abstractions, not as the application's database.
 
-## 6) Kubernetes para workloads stateful
+### What should not be pushed into controllers/operators
 
-### Modelo mental
-Stateful workloads exigem identidade estável e storage persistente desacoplado do ciclo de vida de pod.
+- Arbitrary business-data storage.
+- Monolithic logic that mixes every responsibility together.
 
-### Responsabilidade correta
-- StatefulSet para identidade estável/ordem de rollout.
-- PVC/PV/StorageClass para persistência e ciclo de vida de disco.
-- Probes corretas (startup/readiness/liveness) com semântica apropriada.
+### Impact on `bgorch`
 
-### Boas práticas relevantes
-- Não tratar stateful node como stateless deployment.
-- Política de storage explícita (acesso, reclaim, classe).
-- Startup probes para inicialização longa.
-- Readiness separada de liveness para evitar cascata de restart.
-
-### O que não empurrar para Kubernetes genérico
-- Assumir que um único tipo de rollout serve para todos upgrades de chain.
-- Ignorar requisitos de bootstrap/sync e lock de dados.
-
-### Impacto no `bgorch`
-- `StoragePolicy`, `SyncPolicy`, `UpgradePolicy` entram no domínio comum.
-- Backend Kubernetes precisa traduzir essas políticas para primitives corretas.
-- Modelo de health do core deve preservar startup/readiness/liveness semantics.
+- The core adopts controller-inspired reconciliation semantics.
+- The internal model should cover desired/observed/diff/plan/apply/verify.
+- A future Kubernetes backend can map directly to StatefulSets/Services/PVCs.
 
 ---
 
-## 7) Go modules / organização de projeto em Go
+## 6) Kubernetes for stateful workloads
 
-### Modelo mental
-Módulo Go é unidade versionável; código organizado em pacotes com fronteiras explícitas.
+### Mental model
 
-### Responsabilidade correta
-- Core/CLI/plugins/backends como pacotes internos coesos.
-- Dependências geridas via `go.mod`/`go.sum`.
-- Evolução de API com versionamento de módulo e semver.
+Stateful workloads require stable identity and persistent storage decoupled from pod lifecycle.
 
-### Boas práticas relevantes
-- Um módulo principal no root para reduzir fricção operacional.
-- Uso de `internal/` para encapsular implementação.
-- `cmd/` para binário(s) de entrada.
-- `go mod tidy` e validação contínua em CI.
+### Proper responsibility
 
-### O que não empurrar para layout Go
-- Misturar API externa estável e detalhes internos sem fronteira.
-- Multiplicar módulos cedo sem necessidade real.
+- StatefulSet for stable identity and rollout ordering.
+- PVC/PV/StorageClass for persistence and disk lifecycle.
+- Correct probes (startup/readiness/liveness) with the right semantics.
 
-### Impacto no `bgorch`
-- Estrutura com `cmd/bgorch`, `internal/*`, `docs/*`, `examples/*`.
-- API `v1alpha1` em pacote dedicado para evolução controlada.
-- Registros de plugin/backend como ponto de extensão previsível.
+### Relevant best practices
+
+- Do not treat a stateful node as a stateless deployment.
+- Make storage policy explicit (access mode, reclaim policy, class).
+- Use startup probes for long initialization.
+- Separate readiness from liveness to avoid restart cascades.
+
+### What should not be pushed into generic Kubernetes behavior
+
+- The assumption that one rollout style works for every chain upgrade.
+- Ignoring bootstrap/sync requirements and data-lock behavior.
+
+### Impact on `bgorch`
+
+- `StoragePolicy`, `SyncPolicy`, and `UpgradePolicy` belong in the common domain.
+- The Kubernetes backend must translate those policies into the right primitives.
+- The core health model must preserve startup/readiness/liveness semantics.
+
+---
+
+## 7) Go modules / Go project organization
+
+### Mental model
+
+A Go module is a versionable unit; code is organized into packages with explicit boundaries.
+
+### Proper responsibility
+
+- Keep core/CLI/plugins/backends as cohesive internal packages.
+- Manage dependencies through `go.mod`/`go.sum`.
+- Evolve APIs through module versioning and semver.
+
+### Relevant best practices
+
+- One primary module at the repository root to reduce operational friction.
+- Use `internal/` to encapsulate implementation details.
+- Use `cmd/` for entry binaries.
+- Run `go mod tidy` and continuous validation in CI.
+
+### What should not be pushed into Go layout
+
+- Mixing stable external APIs with internal details without a boundary.
+- Splitting into many modules too early without a real need.
+
+### Impact on `bgorch`
+
+- Use a structure such as `cmd/bgorch`, `internal/*`, `docs/*`, `examples/*`.
+- Keep `v1alpha1` in a dedicated package for controlled evolution.
+- Use plugin/backend registries as predictable extension points.
 
 ---
 
 ## Design Implications for BGorch
 
-| Tecnologia | Boa prática | Risco se usada errado | Decisão no BGorch |
-|------------|-------------|-----------------------|---------------------|
-| Dockerfile/Build | Multi-stage, imagem mínima, sem secrets embutidos | Imagens grandes, inseguras, build não reprodutível | Tratar Dockerfile só como packaging; secrets via `SecretRef` em runtime |
-| Docker Compose | Services/volumes/networks/healthchecks declarativos | Virar pseudo-control-plane sem drift model | Backend Compose gera artefatos determinísticos a partir do core |
-| Ansible | Roles idempotentes + check/diff mode | Virar engine principal e acoplar regras de chain | Adapter opcional de bootstrap/configuração host |
-| Terraform | Plan/apply + state locking remoto | Empurrar runtime de chain para provisioners | Adapter de infra (VM/rede/storage), não runtime orchestrator |
-| Kubernetes controllers/operators | Control loop e separação spec/status | Controller monolítico e acoplamento indevido | Core do `bgorch` segue reconciliação idempotente por design |
-| Kubernetes stateful | StatefulSet + PVC + probes corretas | Tratar nó stateful como app stateless | Modelar `StoragePolicy`, `SyncPolicy`, `UpgradePolicy` no domínio comum |
-| Go modules/layout | `cmd` + `internal` + módulo único inicial | Fronteiras fracas e evolução de API quebradiça | Go-first no core/CLI, API versionada e extensões por registry |
+| Technology | Best practice | Risk if used incorrectly | Decision in BGorch |
+|------------|---------------|--------------------------|--------------------|
+| Dockerfile/Build | Multi-stage, minimal image, no embedded secrets | Large, insecure images and non-reproducible builds | Treat Dockerfile strictly as packaging; inject secrets through `SecretRef` at runtime |
+| Docker Compose | Declarative services/volumes/networks/health checks | Turns into a pseudo control plane without a drift model | Compose backend emits deterministic artifacts from the core |
+| Ansible | Idempotent roles plus check/diff mode | Becomes the main engine and absorbs chain rules | Optional bootstrap/host-configuration adapter |
+| Terraform | Plan/apply with remote state locking | Pushes chain runtime behavior into provisioners | Infrastructure adapter (VM/network/storage), not runtime orchestrator |
+| Kubernetes controllers/operators | Control loop plus spec/status separation | Monolithic controller and improper coupling | `bgorch` core follows idempotent reconciliation by design |
+| Kubernetes stateful | StatefulSet + PVC + correct probes | Treats a stateful node as a stateless app | Model `StoragePolicy`, `SyncPolicy`, and `UpgradePolicy` in the common domain |
+| Go modules/layout | `cmd` + `internal` + one initial module | Weak boundaries and brittle API evolution | Go-first core/CLI, versioned API, registry-based extensions |

@@ -1,58 +1,58 @@
 # CLI Redesign Migration
 
-## Contexto
+## Context
 
-A CLI evoluiu de `bgorch` (MVP técnico) para `chainops` (UX user-first).
+The CLI evolved from `bgorch` (technical MVP) to `chainops` (user-first UX).
 
-Objetivo:
+Goal:
 
-- reduzir carga cognitiva
-- aumentar segurança operacional
-- melhorar automação e explainability
+- reduce cognitive load
+- increase operational safety
+- improve automation and explainability
 
-## Compatibilidade
+## Compatibility
 
-- `cmd/bgorch` continua disponível como alias legado.
-- Fluxos antigos continuam funcionando com compatibilidade de flags críticas (`-o` como output-dir em comandos legados).
+- `cmd/bgorch` remains available as a legacy alias.
+- Old flows continue to work with compatibility for critical flags (`-o` as output-dir in legacy commands).
 
-## Mudanças Principais
+## Main Changes
 
-1. Novo comando raiz: `chainops`
-2. Novo fluxo recomendado: `init -> doctor -> render -> plan -> apply`
-3. `render` agora prioriza configuração canônica resolvida
-4. `plan --out` e `apply <plan-file>`
-5. `apply` com gating de segurança (`--yes` em não interativo)
+1. New root command: `chainops`
+2. New recommended flow: `init -> doctor -> render -> plan -> apply`
+3. `render` now prioritizes resolved canonical configuration
+4. `plan --out` and `apply <plan-file>`
+5. `apply` with safety gating (`--yes` in non-interactive mode)
 6. `explain`, `diff`, `plugin/profile/context`, `completion`
 
-## Mapeamento de Comandos
+## Command Mapping
 
-| Legado (`bgorch`) | Novo (`chainops`) | Observação |
+| Legacy (`bgorch`) | New (`chainops`) | Notes |
 |-------------------|-------------------|------------|
-| `validate` | `validate` | Mantido |
-| `render -o <dir>` | `render --write-artifacts --artifacts-dir <dir>` | `-o <dir>` ainda aceito por compat |
-| `plan` | `plan` | `--out` novo |
-| `apply -f spec` | `apply -f spec --yes` | `--yes` exigido no não interativo |
+| `validate` | `validate` | Kept |
+| `render -o <dir>` | `render --write-artifacts --artifacts-dir <dir>` | `-o <dir>` is still accepted for compatibility |
+| `plan` | `plan` | `--out` is new |
+| `apply -f spec` | `apply -f spec --yes` | `--yes` required in non-interactive mode |
 | `status` | `status` | `--output` table/json/yaml |
-| `doctor` | `doctor` | checks acionáveis |
-| `tui/ui` | `bgorch tui/ui` | legado |
+| `doctor` | `doctor` | actionable checks |
+| `tui/ui` | `bgorch tui/ui` | legacy |
 
-## Recomendações de Pipeline
+## Pipeline Recommendations
 
-Antes:
+Before:
 
 ```bash
 bgorch plan -f cluster.yaml
 bgorch apply -f cluster.yaml
 ```
 
-Depois:
+After:
 
 ```bash
 chainops plan -f chainops.yaml --out plan.json --output json
 chainops apply plan.json --yes --output json
 ```
 
-## Deprecações Planejadas
+## Planned Deprecations
 
-- `bgorch` será mantido durante fase de transição.
-- Nova funcionalidade será adicionada prioritariamente no namespace `chainops`.
+- `bgorch` will be kept during the transition phase.
+- New functionality will be added primarily under the `chainops` namespace.

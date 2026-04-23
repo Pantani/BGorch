@@ -13,7 +13,7 @@ This directory contains Chainops implementation packages (non-stable internal AP
 - `config`: config precedence resolver (defaults/config/env/flags).
 - `doctor`: doctor report model.
 - `domain`: shared DTOs (diagnostics, desired state, plan).
-- `engine`: façade layer used by CLI/TUI.
+- `engine`: facade layer used by CLI/TUI.
 - `output`: table/json/yaml rendering + actionable error formatter.
 - `planner`: diff engine + persisted plan file envelope.
 - `registry`: plugin/backend registration and aliasing.

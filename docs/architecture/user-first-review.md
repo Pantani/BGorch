@@ -1,71 +1,71 @@
-# User-First Review (Estado Atual)
+# User-First Review (Current State)
 
-## Resumo
+## Summary
 
-O core declarativo do projeto já estava tecnicamente sólido para MVP (plugins, backends, planner, snapshot, lock). O principal gap era UX operacional: comandos pouco descobríveis, sem narrativa de onboarding, sem precedência de config explícita e com semântica de flags inconsistente para humanos e automação.
+The project's declarative core was already technically solid for an MVP (plugins, backends, planner, snapshot, lock). The main gap was operational UX: commands were hard to discover, onboarding had no narrative, config precedence was implicit, and flag semantics were inconsistent across human and automation workflows.
 
-## O Que Já Estava Bom
+## What Was Already Good
 
-- Core declarativo separado de plugins e backends (`internal/app`, `internal/chain`, `internal/backend`).
-- Planner determinístico com diff por hash e idempotência de apply.
-- Lock local por `(cluster, backend)` e snapshot versionado.
-- Testes de integração cobrindo múltiplos backends e regressões de lock/runtime.
+- Declarative core separated from plugins and backends (`internal/app`, `internal/chain`, `internal/backend`).
+- Deterministic planner with hash-based diff and apply idempotency.
+- Local lock per `(cluster, backend)` and versioned snapshot.
+- Integration tests covering multiple backends and lock/runtime regressions.
 
-## Tecnicamente Bom, Mas Ruim Para o Usuário
+## Technically Good, but Poor for Users
 
-- CLI manual com `flag` era funcional, porém pouco descobrível e inconsistente.
-- `render` era focado em artifacts; faltava render canônico da configuração resolvida.
-- Fluxo de segurança no `apply` não era explícito para modo não interativo.
-- `help` não contava uma história de produto nem guiava o primeiro sucesso.
+- Manual `flag`-based CLI was functional, but hard to discover and inconsistent.
+- `render` was artifact-focused; canonical render of resolved config was missing.
+- The `apply` safety flow was not explicit for non-interactive use.
+- `help` did not tell a product story or guide users toward first success.
 
-## Confusões de Arquitetura
+## Architectural Confusion
 
-- Camada de UX e core estavam acopladas em `internal/cli/root.go` antigo.
-- Resolução de config não estava separada nem documentada.
-- Explainability de schema/plugins/perfis era indireta (docs externas sem comando dedicado).
+- UX and core layers were coupled in the old `internal/cli/root.go`.
+- Config resolution was neither separated nor documented.
+- Schema/plugin/profile explainability was indirect (external docs with no dedicated command).
 
-## Confusões de CLI
+## CLI Confusion
 
-- Naming legado (`bgorch`) e árvore curta para autores, não para operadores.
-- Ausência de `explain`, `diff`, `completion`, `plan --out`, `apply <plan-file>`.
-- Erros sem padrão consistente de causa/correção/próximo comando.
+- Legacy naming (`bgorch`) and a short command tree optimized for authors, not operators.
+- Missing `explain`, `diff`, `completion`, `plan --out`, and `apply <plan-file>`.
+- Errors lacked a consistent cause/fix/next-command pattern.
 
-## Excesso de Abstração Cedo Demais
+## Too Much Abstraction Too Early
 
-- Modelo de backend amplo sem affordances equivalentes na CLI para operadores.
-- Políticas (`backup/upgrade`) no schema sem comandos de inspeção equivalentes.
+- Broad backend model without matching CLI affordances for operators.
+- Policies (`backup/upgrade`) existed in the schema without equivalent inspection commands.
 
-## Affordances de UX Ausentes
+## Missing UX Affordances
 
-- Onboarding guiado (`init`) e presets de perfil.
-- Caminho principal simples e explícito para novos usuários.
-- Saída estruturada uniforme (`table|json|yaml`) entre comandos principais.
-- Explain command para schema/plugins/perfis.
+- Guided onboarding (`init`) and profile presets.
+- A simple, explicit main path for new users.
+- Uniform structured output (`table|json|yaml`) across primary commands.
+- An explain command for schema/plugins/profiles.
 
-## Fluxos Longos/Frágeis/Obscuros
+## Long, Fragile, and Opaque Flows
 
-- Primeiro sucesso dependia de conhecer internals do spec.
-- Automação dependia de parsing textual heterogêneo.
-- Aplicação de plano não tinha artefato explícito de handoff (`plan --out`).
+- First success depended on understanding spec internals.
+- Automation depended on heterogeneous text parsing.
+- Plan application had no explicit handoff artifact (`plan --out`).
 
-## Decisões que Exigem ADR
+## Decisions That Required an ADR
 
-- Confirmação padrão no `apply` (interativo e não interativo).
-- Semântica oficial de `render` (canônico vs artifacts) e compat legada.
-- Papel de `diff` como comando próprio vs alias semântico de `plan`.
-- Introdução de `pkg/pluginapi` versionável para desacoplamento futuro.
+- Default confirmation behavior in `apply` (interactive and non-interactive).
+- Official `render` semantics (canonical vs artifacts) and legacy compatibility.
+- Role of `diff` as its own command vs a semantic alias of `plan`.
+- Introduction of versioned `pkg/pluginapi` for future decoupling.
 
-## Matriz de Mudanças
+## Change Matrix
 
-| Área | Problema atual | Impacto no usuário | Mudança proposta | Prioridade |
+| Area | Current Problem | User Impact | Proposed Change | Priority |
 |------|----------------|-------------------|------------------|-----------|
-| Modelo de comandos | CLI manual, sem narrativa de produto | Curva de aprendizado alta | Migrar para Cobra com árvore user-first | P0 |
-| Descoberta | Sem `explain`, completion limitado | Baixa discoverability | `explain` + `completion` + help com exemplos | P0 |
-| Segurança operacional | `apply` sem gate forte em modo não interativo | Risco operacional | Confirmar por padrão e exigir `--yes` no não interativo | P0 |
-| Automação | Saídas heterogêneas | Scripts frágeis | Saída estável `table/json/yaml` | P0 |
-| Configuração | Precedência implícita | Comportamento surpresa | `defaults < file < env < flags` explícito + docs | P0 |
-| Handoff de mudança | Sem `plan --out` / `apply <plan>` | Menor auditabilidade | Arquivo de plano versionado | P1 |
-| Onboarding | Sem preset claro | Tempo até primeiro sucesso alto | `init` interativo + não interativo + profiles | P0 |
-| Arquitetura UX/Core | CLI e core acoplados | Evolução difícil | Novas camadas: `config/engine/output/schema/workspace` | P1 |
-| Erros | Mensagens inconsistentes | Troubleshooting lento | Error style guide + erro acionável padronizado | P1 |
-| Migração | Renomeação de produto sem plano | Quebra de fluxo | `bgorch` como alias legado + guia de migração | P1 |
+| Command model | Manual CLI, no product narrative | High learning curve | Migrate to Cobra with a user-first tree | P0 |
+| Discovery | No `explain`, limited completion | Low discoverability | `explain` + `completion` + example-driven help | P0 |
+| Operational safety | `apply` without strong non-interactive guardrails | Operational risk | Confirm by default and require `--yes` in non-interactive mode | P0 |
+| Automation | Heterogeneous outputs | Fragile scripts | Stable `table/json/yaml` output | P0 |
+| Configuration | Implicit precedence | Surprise behavior | Explicit `defaults < file < env < flags` plus docs | P0 |
+| Change handoff | No `plan --out` / `apply <plan>` | Lower auditability | Versioned plan file | P1 |
+| Onboarding | No clear preset | High time-to-first-success | Interactive + non-interactive `init` plus profiles | P0 |
+| UX/Core architecture | CLI and core coupled | Harder evolution | New layers: `config/engine/output/schema/workspace` | P1 |
+| Errors | Inconsistent messages | Slower troubleshooting | Error style guide + standardized actionable error | P1 |
+| Migration | Product rename without a plan | Workflow breakage | `bgorch` as legacy alias + migration guide | P1 |

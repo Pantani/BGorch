@@ -5,30 +5,30 @@
 
 ## Context
 
-A base técnica declarativa estava madura para MVP, porém a UX de operação e onboarding ainda tinha alta fricção.
+The declarative technical foundation was mature enough for an MVP, but the operational and onboarding UX still had high friction.
 
-## Decisões
+## Decisions
 
-1. **`apply` exige confirmação interativa por padrão?**
-   - Sim, no `chainops`.
-2. **No modo não interativo, exigir `--yes`?**
-   - Sim, para evitar mutação silenciosa.
-3. **`plan` e `render` side-effect free?**
-   - Sim, por contrato de UX e automação.
-4. **`diff` comando próprio ou parte de `plan`?**
-   - Comando próprio como visão focada de `plan` (sem noops), reaproveitando mesmo motor.
-5. **`init`: wizard, template generator, ou ambos?**
-   - Ambos: interativo opcional + não interativo excelente para CI.
-6. **Representar plugins/profiles/backends sem poluir core?**
-   - Sim: CLI consulta registries/perfis; core permanece em `internal/app`/`engine`.
-7. **UX para “qualquer blockchain” sem abstração vaga?**
-   - Schema tipado + explain + plugin capabilities explícitas; evitar `map[string]any` no core.
-8. **Caminho básico simples e avançado poderoso?**
-   - Fluxo principal curto + comandos avançados (`plan --out`, `apply <plan-file>`, outputs estruturados).
+1. **Should `apply` require interactive confirmation by default?**
+   - Yes, in `chainops`.
+2. **In non-interactive mode, should `--yes` be required?**
+   - Yes, to avoid silent mutation.
+3. **Should `plan` and `render` be side-effect free?**
+   - Yes, by UX and automation contract.
+4. **Should `diff` be its own command or part of `plan`?**
+   - Separate command as a focused view of `plan` (without noops), reusing the same engine.
+5. **Should `init` be a wizard, a template generator, or both?**
+   - Both: optional interactive mode plus strong non-interactive behavior for CI.
+6. **How should plugins/profiles/backends be represented without polluting the core?**
+   - The CLI queries registries/profiles; the core remains in `internal/app`/`engine`.
+7. **How do we support "any blockchain" without vague abstraction?**
+   - Typed schema + explain + explicit plugin capabilities; avoid `map[string]any` in the core.
+8. **How do we keep the basic path simple while preserving advanced power?**
+   - Short main flow plus advanced commands (`plan --out`, `apply <plan-file>`, structured outputs).
 
-## Consequências
+## Consequences
 
-- Menor risco operacional em CI.
-- Melhora de discoverability e onboarding.
-- Compatibilidade incremental via alias `bgorch`.
-- Base pronta para evoluir plugin SDK versionável (`pkg/pluginapi`).
+- Lower operational risk in CI.
+- Better discoverability and onboarding.
+- Incremental compatibility through the `bgorch` alias.
+- Foundation ready for a versioned plugin SDK evolution (`pkg/pluginapi`).

@@ -15,7 +15,7 @@ import (
 	"github.com/Pantani/gorchestrator/internal/state"
 )
 
-// Options configures the engine façade.
+// Options configures the engine facade.
 type Options struct {
 	StateDir   string
 	Registries *registry.Registries

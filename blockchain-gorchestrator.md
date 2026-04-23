@@ -1,71 +1,75 @@
-# Prompt para Codex — Orquestrador Declarativo Multi-Blockchain em Go
+# Prompt for Codex - Declarative Multi-Blockchain Orchestrator in Go
 
-> Documento histórico de direcionamento inicial do projeto.
-> Para comportamento implementado no código atual, use `README.md` e `docs/`.
+> Historical document for the project's initial direction.
+> For behavior implemented in the current codebase, use `README.md` and `docs/`.
 
-Você é um **principal engineer de plataforma**, com foco em **distributed systems**, **developer tooling**, **infraestrutura por código**, **orquestração**, **containers** e **operações de blockchains**.
+You are a **principal platform engineer** focused on **distributed systems**, **developer tooling**, **infrastructure as code**, **orchestration**, **containers**, and **blockchain operations**.
 
-Sua missão é **projetar e iniciar a implementação** de um projeto open-source chamado **BGorch - The Blockchain Gorchestrator**, um **orquestrador declarativo multi-blockchain** para **deploy**, **configuração**, **bootstrap**, **upgrade**, **backup/restore**, **observabilidade** e **lifecycle management** de nós e clusters de blockchain.
+Your mission is to **design and start implementing** an open-source project called **BGorch - The Blockchain Gorchestrator**, a **declarative multi-blockchain orchestrator** for **deploy**, **configuration**, **bootstrap**, **upgrade**, **backup/restore**, **observability**, and **lifecycle management** of blockchain nodes and clusters.
 
-## Contexto do produto
+## Product context
 
-Eu quero um produto que funcione para **qualquer blockchain**, e não apenas para Cosmos, Ethereum, Bitcoin etc.
+I want a product that works for **any blockchain**, not just Cosmos, Ethereum, Bitcoin, and so on.
 
-Isso significa que o design **não pode acoplar o core** a uma única família de chain. Em vez disso, o sistema deve ter:
+That means the design **cannot couple the core** to a single chain family. Instead, the system must have:
 
-1. um **core genérico** de orquestração;
-2. uma **camada comum** para conceitos cross-chain;
-3. **plugins/adapters por família de blockchain**;
-4. **profiles por chain específica**;
-5. **backends de execução** independentes da chain.
+1. a **generic orchestration core**;
+2. a **common layer** for cross-chain concepts;
+3. **plugins/adapters per blockchain family**;
+4. **profiles per specific chain**;
+5. **execution backends** independent from the chain.
 
-## Diretriz principal de linguagem
+## Main language directive
 
-- **Preferir Go como linguagem principal**.
-- Só escolha outra linguagem para algum componente se houver uma **justificativa técnica forte e explícita**.
-- Mesmo que algum subcomponente use outra linguagem, o **core/control plane/CLI principal** deve permanecer em **Go**.
-- Documente qualquer exceção em ADR.
+- **Prefer Go as the primary language**.
+- Only choose another language for a component if there is a **strong, explicit technical justification**.
+- Even if a subcomponent uses another language, the **main core/control plane/CLI** must remain in **Go**.
+- Document every exception in an ADR.
 
-## O que NÃO quero
+## What I do NOT want
 
-- Não quero começar como “um provider de Terraform” apenas.
-- Não quero começar como “uma collection de Ansible” apenas.
-- Não quero um projeto preso a uma chain específica.
-- Não quero um wrapper raso de Docker Compose.
-- Não quero um projeto que só faça `docker run` com templates soltos.
-- Não quero um design que assuma que toda chain é um único processo.
-- Não quero um design que assuma Kubernetes como único runtime.
-- Não quero um design em que todo detalhe específico de chain vaze para o core.
+- I do not want to start as "just a Terraform provider".
+- I do not want to start as "just an Ansible collection".
+- I do not want a project locked to a specific chain.
+- I do not want a shallow Docker Compose wrapper.
+- I do not want a project that only does `docker run` with loose templates.
+- I do not want a design that assumes every chain is a single process.
+- I do not want a design that assumes Kubernetes is the only runtime.
+- I do not want a design where chain-specific details leak into the core.
 
-## O que eu quero
+## What I do want
 
-Quero um **core declarativo próprio**, em Go, com **desired state**, **plan/apply**, **reconciliação idempotente**, **detecção de drift**, **renderização determinística de configuração** e **adapters/backends** para diferentes ambientes.
+I want a **first-party declarative core** in Go, with **desired state**, **plan/apply**, **idempotent reconciliation**, **drift detection**, **deterministic configuration rendering**, and **adapters/backends** for different environments.
 
-Quero que você trate:
+Treat:
 
-- **Terraform** como um possível **adapter de infra/provisionamento**;
-- **Ansible** como um possível **adapter de bootstrap/configuração de hosts**;
-- **Dockerfile** como mecanismo de empacotamento;
-- **Docker Compose** como um backend/orchestrator local ou simples;
-- **Kubernetes** como um backend avançado para workloads stateful;
-- **SSH + systemd** como backend importante para bare metal/VMs;
-- e que o produto possa crescer para outros alvos no futuro.
+- **Terraform** as a possible **infrastructure/provisioning adapter**;
+- **Ansible** as a possible **host bootstrap/configuration adapter**;
+- **Dockerfile** as a packaging mechanism;
+- **Docker Compose** as a local/simple backend/orchestrator;
+- **Kubernetes** as an advanced backend for stateful workloads;
+- **SSH + systemd** as an important backend for bare metal/VMs;
+- and leave room for the product to grow into other targets later.
 
-## Estratégia de arquitetura
+## Architecture strategy
 
-Projete o sistema com estas camadas:
+Design the system with these layers:
 
-### 1. Core declarativo
-Responsável por:
-- ler specs YAML/JSON;
-- validar schema + regras;
-- calcular plano;
-- reconciliar desired state vs current state;
-- aplicar mudanças de forma idempotente;
-- gerar outputs, status, eventos e diagnósticos.
+### 1. Declarative core
 
-### 2. Modelo de domínio comum
-Conceitos genéricos que existem em várias chains:
+Responsible for:
+
+- reading YAML/JSON specs;
+- validating schema and rules;
+- computing plans;
+- reconciling desired state vs current state;
+- applying changes idempotently;
+- generating outputs, status, events, and diagnostics.
+
+### 2. Common domain model
+
+Generic concepts shared by many chains:
+
 - cluster
 - node
 - node set / node pool
@@ -86,27 +90,33 @@ Conceitos genéricos que existem em várias chains:
 - resource sizing
 - lifecycle hooks
 
-### 3. Extensões por família de blockchain
-Cada família deve poder:
-- validar campos específicos;
-- renderizar arquivos de configuração;
-- declarar processos necessários;
-- definir estratégias de sync/bootstrap;
-- definir health checks;
-- declarar compatibilidades e limitações;
-- expor extensões sem contaminar o core.
+### 3. Blockchain-family extensions
 
-### 4. Backends de execução
-Comece com uma interface clara para suportar:
+Each family must be able to:
+
+- validate specific fields;
+- render configuration files;
+- declare required processes;
+- define sync/bootstrap strategies;
+- define health checks;
+- declare compatibility and limits;
+- expose extensions without polluting the core.
+
+### 4. Execution backends
+
+Start with a clear interface that can support:
+
 - Docker Engine
 - Docker Compose
 - SSH + systemd
 - Kubernetes
-- adapter de Ansible
-- adapter de Terraform
+- Ansible adapter
+- Terraform adapter
 
-### 5. Estado e reconciliação
-O sistema deve ter um mecanismo claro para:
+### 5. State and reconciliation
+
+The system must have a clear mechanism for:
+
 - desired state
 - observed state
 - diff
@@ -114,213 +124,232 @@ O sistema deve ter um mecanismo claro para:
 - apply
 - verify
 - rollback/repair
-- locks e segurança contra operações concorrentes perigosas
+- locks and protection against dangerous concurrent operations
 
-## Primeiro passo obrigatório: pesquisa
+## Mandatory first step: research
 
-Antes de implementar o core, faça uma **pesquisa guiada em documentação oficial** e produza um documento em:
+Before implementing the core, perform **guided research using official documentation** and produce a document at:
 
 `docs/research/infra-foundations.md`
 
-Esse documento deve resumir **boas práticas e implicações de design** para o projeto a partir de:
+That document must summarize **best practices and design implications** for the project based on:
 
 1. Dockerfile / Docker Build
 2. Docker Compose
 3. Ansible
 4. Terraform
 5. Kubernetes controllers/operators
-6. Kubernetes para workloads stateful
-7. Go modules / organização de projeto em Go
+6. Kubernetes for stateful workloads
+7. Go modules / Go project organization
 
-### Regras da pesquisa
+### Research rules
 
-- Priorize **documentação oficial**.
-- Cite links oficiais no documento.
-- Para cada tecnologia, extraia:
-  - o modelo mental;
-  - as responsabilidades corretas daquela tecnologia;
-  - boas práticas relevantes;
-  - o que **não** deve ser empurrado para ela;
-  - como isso influencia o design do `bgorch`.
+- Prioritize **official documentation**.
+- Include official links in the document.
+- For each technology, extract:
+  - the mental model;
+  - the proper responsibilities of that technology;
+  - relevant best practices;
+  - what **should not** be pushed into it;
+  - how that affects the design of `bgorch`.
 
-### Resultado esperado da pesquisa
+### Expected research output
 
-No final desse documento, crie uma seção:
+At the end of that document, create a section:
 
 `Design Implications for bgorch`
 
-Com uma tabela neste formato:
+With a table in this format:
 
-| Tecnologia | Boa prática | Risco se usada errado | Decisão no bgorch |
-|------------|-------------|-----------------------|---------------------|
+| Technology | Best practice | Risk if used incorrectly | Decision in bgorch |
+|------------|---------------|--------------------------|--------------------|
 
-## Resultado esperado do projeto
+## Expected project outcome
 
-Quero que você entregue uma base de projeto que permita evoluir para um produto com estes objetivos:
+I want a project foundation that can evolve toward these goals:
 
-- suportar **múltiplas famílias de blockchain**;
-- suportar **múltiplos processos por node**;
-- suportar **estado persistente**;
-- suportar **bootstrap por snapshot / state sync / restore / genesis / custom**;
-- suportar **nós archive, pruned, validator, RPC, sentry, full node, relayer, observer**;
-- suportar **deploy local, VMs e Kubernetes**;
-- suportar **plan/apply/status/doctor/render**;
-- ser extensível sem precisar reescrever o core.
+- support **multiple blockchain families**;
+- support **multiple processes per node**;
+- support **persistent state**;
+- support **bootstrap by snapshot / state sync / restore / genesis / custom**;
+- support **archive, pruned, validator, RPC, sentry, full node, relayer, observer** roles;
+- support **local deploy, VMs, and Kubernetes**;
+- support **plan/apply/status/doctor/render**;
+- remain extensible without rewriting the core.
 
-## Modelo de abstração desejado
+## Desired abstraction model
 
-Você deve desenhar o sistema em **duas camadas de schema**:
+You must design the system in **two schema layers**:
 
-### Camada 1: schema comum e portátil
-Inclui apenas conceitos que fazem sentido cross-chain.
+### Layer 1: common and portable schema
 
-### Camada 2: extensões específicas
-Cada plugin de família pode declarar:
-- campos adicionais;
-- validações;
-- renderização;
-- processos auxiliares;
-- lógica de bootstrap;
-- regras de upgrade;
-- observabilidade específica.
+Include only concepts that make sense cross-chain.
 
-### Regra importante
-Não coloque campos específicos de uma chain no schema comum sem uma justificativa forte.
+### Layer 2: specific extensions
 
-Quando algo for específico demais, use:
+Each family plugin can declare:
+
+- additional fields;
+- validations;
+- rendering;
+- helper processes;
+- bootstrap logic;
+- upgrade rules;
+- family-specific observability.
+
+### Important rule
+
+Do not place chain-specific fields in the common schema without a strong justification.
+
+When something is too specific, use:
+
 - `familyConfig`
 - `pluginConfig`
-- ou mecanismo equivalente
+- or an equivalent mechanism
 
-…desde que exista **validação tipada** e não seja apenas um `map[string]any` sem controle.
+...as long as there is **typed validation** and not just an uncontrolled `map[string]any`.
 
-## Princípios de design
+## Design principles
 
 1. **Go-first**
-   - CLI, engine, planner, reconciler e plugins preferencialmente em Go.
+   - CLI, engine, planner, reconciler, and plugins should preferably be in Go.
 
-2. **Idempotência**
-   - Repetir `apply` não deve quebrar o ambiente.
-   - O sistema deve convergir para o desired state.
+2. **Idempotency**
+   - Repeating `apply` must not break the environment.
+   - The system must converge toward desired state.
 
-3. **Determinismo**
-   - Mesma spec + mesmo contexto => mesmos artefatos/renderizações.
+3. **Determinism**
+   - Same spec + same context => same artifacts/renders.
 
-4. **Segurança**
-   - Não embutir secrets em imagem.
-   - Não vazar chaves em logs.
-   - Tratar validator keys / wallet keys / signing keys com extremo cuidado.
-   - Permitir integração com secret stores futuramente.
+4. **Security**
+   - Do not bake secrets into images.
+   - Do not leak keys in logs.
+   - Treat validator keys / wallet keys / signing keys with extreme care.
+   - Allow future integration with secret stores.
 
 5. **Drift detection**
-   - Detectar divergência entre estado desejado e atual.
+   - Detect divergence between desired and current state.
 
-6. **Extensibilidade**
-   - Adicionar nova família de chain deve ser um trabalho localizado.
+6. **Extensibility**
+   - Adding a new chain family should be localized work.
 
-7. **Múltiplos runtimes**
-   - Containers e host binaries devem ser suportados.
-   - Nem toda chain deve exigir container.
+7. **Multiple runtimes**
+   - Support both containers and host binaries.
+   - Not every chain should require containers.
 
 8. **Stateful by design**
-   - Não tratar node stateful como se fosse app stateless.
+   - Do not treat a stateful node like a stateless app.
 
 9. **Plan first**
-   - Toda mudança importante deve passar por `plan`.
+   - Every important change must go through `plan`.
 
-10. **Observabilidade embutida**
-    - Logs, métricas, status e diagnósticos desde o início.
+10. **Built-in observability**
+    - Logs, metrics, status, and diagnostics from the beginning.
 
-11. **Pragmatismo**
-    - MVP pequeno, arquitetura sólida.
-    - Não tentar suportar todas as chains no primeiro commit.
+11. **Pragmatism**
+    - Small MVP, solid architecture.
+    - Do not try to support every chain in the first commit.
 
-## Casos que o design precisa suportar
+## Scenarios the design must support
 
-O sistema deve conseguir modelar:
+The system must be able to model:
 
-### Caso A — Chain simples de processo único
-Um daemon único, com:
-- binário ou imagem
-- portas
-- diretórios
-- arquivo de config
-- volume persistente
+### Case A - Simple single-process chain
+
+A single daemon with:
+
+- binary or image
+- ports
+- directories
+- config file
+- persistent volume
 - restart policy
 - backup policy
 
-### Caso B — Chain multi-processo
-Exemplo genérico:
+### Case B - Multi-process chain
+
+Generic example:
+
 - execution client
 - consensus client
 - validator
 - sidecar/exporter/proxy
 
-O design deve suportar um único “node lógico” composto por **vários processos/workloads**.
+The design must support one "logical node" composed of **multiple processes/workloads**.
 
-### Caso C — Deploy em host
-Sem container. Usando:
-- download de binário
-- criação de diretórios
+### Case C - Host deploy
+
+Without containers. Using:
+
+- binary download
+- directory creation
 - templates
 - systemd
 - health checks
 
-### Caso D — Deploy em containers
-Usando:
+### Case D - Container deploy
+
+Using:
+
 - Dockerfile
 - Docker Engine
 - Docker Compose
 - named volumes / bind mounts
 
-### Caso E — Deploy em Kubernetes
-Usando recursos adequados para workloads stateful, com PVCs, config e secrets.
+### Case E - Kubernetes deploy
 
-### Caso F — Custom blockchain desconhecida
-Usuário fornece:
-- imagem ou binário;
-- comando/args;
+Using the right resources for stateful workloads, with PVCs, config, and secrets.
+
+### Case F - Unknown custom blockchain
+
+The user provides:
+
+- image or binary;
+- command/args;
 - templates;
-- portas;
+- ports;
 - volumes;
 - probes;
 - hooks;
 - strategy plugins;
-e o sistema ainda funciona sem precisar de suporte hardcoded.
 
-## Direção de MVP
+and the system still works without requiring hardcoded support.
 
-Para o MVP, implemente **primeiro o motor genérico** e depois **referências**, não o contrário.
+## MVP direction
 
-### MVP obrigatório
+For the MVP, implement **the generic engine first** and only then **reference integrations**, not the other way around.
 
-1. **CLI em Go**
-2. **Schema versionado**
-3. **Validação**
+### Mandatory MVP
+
+1. **Go CLI**
+2. **Versioned schema**
+3. **Validation**
 4. **Render**
 5. **Plan**
 6. **Apply**
 7. **Status**
 8. **Doctor**
-9. **Backend Docker Compose**
-10. **Backend SSH + systemd**
-11. **Plugin genérico `generic-process`**
-12. **Pelo menos 1 plugin de referência real**
-13. **Testes unitários e golden tests**
-14. **Documentação e exemplos**
+9. **Docker Compose backend**
+10. **SSH + systemd backend**
+11. **Generic `generic-process` plugin**
+12. **At least 1 real reference plugin**
+13. **Unit tests and golden tests**
+14. **Documentation and examples**
 
-### Sugestão de plugin de referência real
-Escolha um dos caminhos:
+### Suggested real reference plugin
+
+Choose one path:
+
 - `bitcoin-core`
 - `ethereum-stack`
 - `cometbft-family`
-- outro, desde que justificado
+- another justified option
 
-Mas **não** deixe o design depender dele.
+But **do not** make the design depend on it.
 
-## Interface de alto nível do CLI
+## High-level CLI interface
 
-Projete algo como:
+Design something like:
 
 ```bash
 bgorch init
@@ -334,9 +363,9 @@ bgorch backup -f examples/generic-node.yaml
 bgorch restore -f examples/generic-node.yaml
 ```
 
-## Modelo de recursos sugerido
+## Suggested resource model
 
-Você pode ajustar os nomes, mas quero algo nessa linha:
+You may adjust names, but I want something in this direction:
 
 - `ChainCluster`
 - `NodePool`
@@ -352,11 +381,11 @@ Você pode ajustar os nomes, mas quero algo nessa linha:
 - `ChainProfile`
 - `RuntimeBackend`
 
-Ou um modelo equivalente, desde que bem justificado.
+Or an equivalent model, as long as it is well justified.
 
-## Interface de plugin sugerida
+## Suggested plugin interface
 
-Projete uma interface em Go equivalente a algo como:
+Design a Go interface equivalent to something like:
 
 ```go
 type ChainPlugin interface {
@@ -378,16 +407,17 @@ type ChainPlugin interface {
 }
 ```
 
-Você pode mudar a interface se encontrar desenho melhor, mas preserve a ideia central:
-- validação;
-- renderização;
-- descrição de workloads;
+You may change the interface if you find a better design, but preserve the core idea:
+
+- validation;
+- rendering;
+- workload description;
 - lifecycle hooks;
-- estratégias de operação.
+- operational strategies.
 
-## Backend interface sugerida
+## Suggested backend interface
 
-Projete uma interface em Go equivalente a:
+Design a Go interface equivalent to:
 
 ```go
 type Backend interface {
@@ -402,9 +432,9 @@ type Backend interface {
 }
 ```
 
-## Arquitetura interna desejada
+## Desired internal architecture
 
-Estruture o projeto com algo próximo de:
+Structure the project roughly like:
 
 ```text
 bgorch/
@@ -440,99 +470,110 @@ bgorch/
   test/
 ```
 
-Não siga isso cegamente; refine se achar melhor, mas mantenha a separação de responsabilidades.
+Do not follow this blindly; refine it if you find a better structure, but keep clear responsibility boundaries.
 
-## Requisitos importantes de implementação
+## Important implementation requirements
 
-### 1. API versionada
-- Use algo como `v1alpha1`.
-- Prepare o terreno para evolução futura.
+### 1. Versioned API
 
-### 2. Renderização determinística
-- Templates e arquivos gerados devem ser testáveis.
-- Use golden tests para config render.
+- Use something like `v1alpha1`.
+- Prepare the ground for future evolution.
 
-### 3. Estado local do projeto
-- Comece simples.
-- Pode usar diretório local de estado + locks.
-- Abstraia a camada para futura troca por SQLite/Postgres/etcd, se necessário.
+### 2. Deterministic rendering
 
-### 4. Operações seguras
-- `plan` antes de `apply`;
+- Templates and generated files must be testable.
+- Use golden tests for config rendering.
+
+### 3. Local project state
+
+- Start simple.
+- A local state directory plus locks is acceptable.
+- Abstract the layer so it can later be replaced by SQLite/Postgres/etcd if needed.
+
+### 4. Safe operations
+
+- `plan` before `apply`;
 - `--dry-run`;
-- verificações pós-apply;
-- mensagens claras;
-- falhas parciais tratadas com cuidado.
+- post-apply verification;
+- clear messages;
+- careful handling of partial failures.
 
-### 5. Logs e diagnósticos
+### 5. Logs and diagnostics
+
 - structured logging;
-- erros acionáveis;
-- saída humana e, se possível, JSON.
+- actionable errors;
+- human-readable output and, if possible, JSON.
 
-### 6. Testes
-Inclua:
+### 6. Tests
+
+Include:
+
 - unit tests;
 - golden tests;
-- testes de planner;
-- testes de render;
-- testes mínimos de integração para o backend Compose;
-- testes de validação de spec.
+- planner tests;
+- render tests;
+- minimal integration tests for the Compose backend;
+- spec validation tests.
 
 ### 7. Examples
-Entregue exemplos completos para:
+
+Deliver complete examples for:
+
 - generic single-process node
 - generic multi-process node
-- deploy por Docker Compose
-- deploy por SSH + systemd
-- um plugin real de referência
+- deploy via Docker Compose
+- deploy via SSH + systemd
+- one real reference plugin
 
-## Boas práticas que quero embutidas no design
+## Best practices I want embedded in the design
 
-Sem se limitar a estes pontos, quero que a pesquisa e a implementação considerem:
+Without limiting the work to these points, I want the research and implementation to consider:
 
-- imagens pequenas e seguras;
-- builds reproduzíveis;
-- separação clara entre build e runtime;
-- volumes persistentes para dados stateful;
-- não guardar secrets dentro de imagens;
-- idempotência;
-- composição e reaproveitamento;
-- validação antes de aplicar;
-- separation of concerns entre infra, bootstrap e operação;
-- suporte a rollback/repair;
+- small, secure images;
+- reproducible builds;
+- clear separation between build and runtime;
+- persistent volumes for stateful data;
+- never storing secrets inside images;
+- idempotency;
+- composition and reuse;
+- validation before apply;
+- separation of concerns between infra, bootstrap, and operations;
+- rollback/repair support;
 - health checks;
-- readiness / liveness / startup semantics quando aplicável;
-- artefatos gerados versionáveis;
-- comportamento previsível em reexecução.
+- readiness / liveness / startup semantics when applicable;
+- versionable generated artifacts;
+- predictable behavior on re-execution.
 
-## O que o design NÃO deve assumir
+## What the design must NOT assume
 
-- que todo node usa Docker;
-- que todo node usa Kubernetes;
-- que toda chain usa um único banco/local state;
-- que toda chain suporta pruning da mesma forma;
-- que toda chain tem as mesmas flags;
-- que todo upgrade é rolling;
-- que todo bootstrap é via snapshot;
-- que Terraform deve conhecer detalhes internos da chain;
-- que Ansible deve virar o core do produto.
+- that every node uses Docker;
+- that every node uses Kubernetes;
+- that every chain uses a single database/local state;
+- that every chain supports pruning the same way;
+- that every chain has the same flags;
+- that every upgrade is rolling;
+- that every bootstrap happens through snapshots;
+- that Terraform should understand the chain's internal details;
+- that Ansible should become the product core.
 
-## Abordagem correta para “qualquer blockchain”
+## Correct approach for "any blockchain"
 
-Modele o problema assim:
+Model the problem like this:
 
-### Camada comum
-Campos portáveis:
-- nome
-- família
+### Common layer
+
+Portable fields:
+
+- name
+- family
 - profile
 - runtime/backend
 - workloads
 - volumes
-- redes
-- portas
-- recursos
-- arquivos renderizados
+- networks
+- ports
+- resources
+- rendered files
 - env
 - command/args
 - restart policy
@@ -541,211 +582,235 @@ Campos portáveis:
 - observability
 - secret refs
 
-### Camada específica
-Campos por plugin:
-- pruning knobs específicos
-- db backend específico
-- flags específicas
-- config TOML/YAML/JSON específicas
-- sidecars específicos
-- topologias específicas
-- regras de bootstrap específicas
-- regras de upgrade específicas
+### Specific layer
 
-## Backends que devem existir no design
+Plugin-owned fields:
 
-### Backend 1 — Docker Compose
-Deve:
-- gerar compose file;
-- modelar services, networks e volumes;
-- suportar named volumes/bind mounts;
-- suportar health checks/restart policies;
-- subir e derrubar ambientes locais.
+- specific pruning knobs
+- specific DB backend
+- specific flags
+- specific TOML/YAML/JSON config
+- specific sidecars
+- specific topologies
+- specific bootstrap rules
+- specific upgrade rules
 
-### Backend 2 — SSH + systemd
-Deve:
-- preparar diretórios;
-- copiar/renderizar configs;
-- instalar ou posicionar binários;
-- gerar systemd units;
-- iniciar/parar/reiniciar serviços;
-- observar status.
+## Backends that must exist in the design
 
-### Backend 3 — Kubernetes
-Mesmo que o MVP não implemente tudo, deixe a arquitetura pronta para:
+### Backend 1 - Docker Compose
+
+It must:
+
+- generate a Compose file;
+- model services, networks, and volumes;
+- support named volumes/bind mounts;
+- support health checks/restart policies;
+- bring up and tear down local environments.
+
+### Backend 2 - SSH + systemd
+
+It must:
+
+- prepare directories;
+- copy/render configs;
+- install or place binaries;
+- generate systemd units;
+- start/stop/restart services;
+- observe status.
+
+### Backend 3 - Kubernetes
+
+Even if the MVP does not implement everything, leave the architecture ready for:
+
 - StatefulSets
 - PVCs
 - ConfigMaps / Secrets
 - Services
 - probes
-- rolling updates controladas
-- afinidade / anti-afinidade / tolerations quando fizer sentido
+- controlled rolling updates
+- affinity / anti-affinity / tolerations where appropriate
 
-### Backend 4 — Terraform adapter
-O adapter de Terraform deve focar em:
-- provisionamento de infra;
+### Backend 4 - Terraform adapter
+
+The Terraform adapter must focus on:
+
+- infrastructure provisioning;
 - VMs;
-- discos;
-- redes;
+- disks;
+- networks;
 - buckets;
 - security groups/firewall;
-- clusters Kubernetes.
+- Kubernetes clusters.
 
-Não empurre para Terraform o que deveria ser responsabilidade do reconciler de runtime.
+Do not push into Terraform what belongs to the runtime reconciler.
 
-### Backend 5 — Ansible adapter
-O adapter de Ansible deve focar em:
-- bootstrap de host;
+### Backend 5 - Ansible adapter
+
+The Ansible adapter must focus on:
+
+- host bootstrap;
 - templates;
-- configuração de diretórios;
-- distribuição de arquivos;
+- directory configuration;
+- file distribution;
 - systemd;
 - handlers/restarts;
-- integração com inventories.
+- inventory integration.
 
-Não transforme Ansible no control plane principal.
+Do not turn Ansible into the main control plane.
 
-## Segurança e chaves
+## Security and keys
 
-Trate como requisito de primeira classe:
+Treat these as first-class requirements:
 
-- chaves privadas;
+- private keys;
 - validator keys;
 - wallet keys;
 - mnemonics;
 - tokens;
-- credenciais de RPC;
-- credenciais cloud.
+- RPC credentials;
+- cloud credentials.
 
-Quero:
-- abstração de `SecretRef`;
-- opção para env/file/provider externo;
-- nunca logar segredo;
-- nunca serializar segredo à toa;
-- caminho futuro para KMS/Vault/SOPS ou equivalentes.
+I want:
 
-## Observabilidade
+- a `SecretRef` abstraction;
+- support for env/file/external provider;
+- never logging secrets;
+- never serializing secrets unnecessarily;
+- a future path toward KMS/Vault/SOPS or equivalents.
 
-Inclua desde o início:
+## Observability
+
+Include from the beginning:
+
 - structured logs;
 - health model;
 - status model;
-- eventos/diagnósticos;
-- espaço para métricas;
-- integração futura com Prometheus/Grafana/Loki ou equivalentes.
+- events/diagnostics;
+- room for metrics;
+- future integration with Prometheus/Grafana/Loki or equivalents.
 
-## Saída esperada do Codex
+## Expected Codex output
 
-Quero que você trabalhe em fases e **não tente codar tudo de uma vez sem pensar**.
+I want you to work in phases and **not try to code everything at once without thinking**.
 
-### Fase 0 — Pesquisa e arquitetura
-Entregue:
-1. resumo executivo do problema;
+### Phase 0 - Research and architecture
+
+Deliver:
+
+1. executive summary of the problem;
 2. `docs/research/infra-foundations.md`;
 3. `docs/adr/0001-core-architecture.md`;
 4. `docs/adr/0002-plugin-model.md`;
 5. `docs/adr/0003-backend-model.md`;
-6. proposta do schema `v1alpha1`;
-7. árvore inicial do repositório.
+6. proposed `v1alpha1` schema;
+7. initial repository tree.
 
-### Fase 1 — Scaffold do projeto
-Entregue:
-- módulo Go;
-- estrutura de diretórios;
-- CLI mínima;
-- parser de spec;
-- validação básica;
-- registries de backend/plugin;
-- comandos `validate`, `render`, `plan`.
+### Phase 1 - Project scaffold
 
-### Fase 2 — MVP funcional
-Entregue:
-- plugin `generic-process`;
-- backend `docker-compose`;
-- backend `ssh+systemd`;
-- planner básico;
-- renderização de arquivos;
+Deliver:
+
+- Go module;
+- directory structure;
+- minimal CLI;
+- spec parser;
+- basic validation;
+- backend/plugin registries;
+- `validate`, `render`, and `plan` commands.
+
+### Phase 2 - Functional MVP
+
+Deliver:
+
+- `generic-process` plugin;
+- `docker-compose` backend;
+- `ssh+systemd` backend;
+- basic planner;
+- file rendering;
 - examples;
-- testes mínimos.
+- minimal tests.
 
-### Fase 3 — Referência real
-Entregue:
-- 1 plugin real de referência;
-- exemplos reais;
-- documentação de uso;
-- decisões de compatibilidade.
+### Phase 3 - Real reference
 
-### Fase 4 — Extensibilidade
+Deliver:
+
+- 1 real reference plugin;
+- real examples;
+- usage documentation;
+- compatibility decisions.
+
+### Phase 4 - Extensibility
+
 Prepare:
-- backend Kubernetes;
-- adapter Terraform;
-- adapter Ansible;
+
+- Kubernetes backend;
+- Terraform adapter;
+- Ansible adapter;
 - API/plugin evolution.
 
-## Regras de execução
+## Execution rules
 
-1. **Pense antes de codar**.
-2. **Comece pela pesquisa e ADRs**.
-3. **Explique trade-offs**.
-4. **Prefira simplicidade estrutural no MVP**.
-5. **Evite abstrações mágicas demais**.
-6. **Evite dependências desnecessárias**.
-7. **Priorize interfaces claras e testáveis**.
-8. **Não esconda problemas; documente limites**.
-9. **Não finja suporte universal sem base real**.
-10. **Projete para extensão, não para overengineering inicial**.
+1. **Think before coding**.
+2. **Start with research and ADRs**.
+3. **Explain trade-offs**.
+4. **Prefer structural simplicity in the MVP**.
+5. **Avoid overly magical abstractions**.
+6. **Avoid unnecessary dependencies**.
+7. **Prioritize clear, testable interfaces**.
+8. **Do not hide problems; document limits**.
+9. **Do not pretend to have universal support without real basis**.
+10. **Design for extension, not for initial overengineering**.
 
-## Entrega inicial desejada nesta rodada
+## Desired initial delivery in this round
 
-Nesta primeira execução, faça o seguinte:
+In this first execution, do the following:
 
-1. Produza o **resumo arquitetural**.
-2. Produza o **plano de implementação por fases**.
-3. Gere a **árvore de diretórios inicial**.
-4. Crie os **ADRs iniciais**.
-5. Crie o **schema `v1alpha1` inicial**.
-6. Faça o **scaffold em Go**.
-7. Implemente:
+1. Produce the **architectural summary**.
+2. Produce the **phased implementation plan**.
+3. Generate the **initial directory tree**.
+4. Create the **initial ADRs**.
+5. Create the **initial `v1alpha1` schema**.
+6. Build the **Go scaffold**.
+7. Implement:
    - `bgorch validate`
    - `bgorch render`
    - `bgorch plan`
-   - registry de plugins
-   - registry de backends
-   - plugin `generic-process`
-   - backend `docker-compose` com renderização de compose file
-8. Adicione **2 exemplos completos**
-9. Adicione **testes**
-10. Documente claramente o que ficou como próximo passo
+   - plugin registry
+   - backend registry
+   - `generic-process` plugin
+   - `docker-compose` backend with Compose file rendering
+8. Add **2 complete examples**
+9. Add **tests**
+10. Clearly document what remains as the next step
 
-## Critérios de aceitação
+## Acceptance criteria
 
-Considerarei a entrega boa se:
+I will consider the delivery good if:
 
-- o core estiver em Go;
-- o design não estiver preso a uma chain;
-- o schema estiver limpo;
-- houver separação clara entre core, plugins e backends;
-- o backend Compose gerar artefatos úteis;
-- o plugin genérico permitir modelar uma chain desconhecida;
-- o projeto tiver docs, exemplos e testes;
-- as ADRs explicarem por que o core não é simplesmente Terraform ou Ansible;
-- der para evoluir para Kubernetes, Terraform e Ansible sem reescrever tudo.
+- the core is in Go;
+- the design is not locked to a single chain;
+- the schema is clean;
+- there is clear separation between core, plugins, and backends;
+- the Compose backend generates useful artifacts;
+- the generic plugin can model an unknown chain;
+- the project includes docs, examples, and tests;
+- the ADRs explain why the core is not simply Terraform or Ansible;
+- the project can evolve toward Kubernetes, Terraform, and Ansible without a rewrite.
 
-## Formato da resposta
+## Response format
 
-Quero que você responda nesta ordem:
+I want you to respond in this order:
 
-1. **Resumo da arquitetura proposta**
-2. **Principais trade-offs**
-3. **Fases de implementação**
-4. **Árvore do repositório**
-5. **Arquivos que serão criados**
-6. **Conteúdo dos ADRs**
-7. **Conteúdo do scaffold inicial em Go**
-8. **Exemplos**
-9. **Testes**
-10. **Próximos passos**
+1. **Summary of the proposed architecture**
+2. **Main trade-offs**
+3. **Implementation phases**
+4. **Repository tree**
+5. **Files that will be created**
+6. **ADR contents**
+7. **Initial Go scaffold contents**
+8. **Examples**
+9. **Tests**
+10. **Next steps**
 
-Se precisar fazer suposições, explicite.
+If you need to make assumptions, state them explicitly.
 
-Comece agora.
+Start now.

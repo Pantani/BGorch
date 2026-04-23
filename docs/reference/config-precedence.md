@@ -1,19 +1,19 @@
 # Config Precedence
 
-Chainops resolve configuração nesta ordem (menor para maior precedência):
+Chainops resolves configuration in this order (lowest to highest precedence):
 
 ```text
 defaults < config file < env vars < flags
 ```
 
-## Fontes
+## Sources
 
-- Defaults internos (`internal/config.DefaultValues`).
-- Arquivo de config via `--config`.
-- Variáveis de ambiente com prefixo `CHAINOPS_`.
-- Flags da linha de comando.
+- Internal defaults (`internal/config.DefaultValues`).
+- Config file via `--config`.
+- Environment variables with the `CHAINOPS_` prefix.
+- Command-line flags.
 
-## Chaves suportadas
+## Supported Keys
 
 - `config`
 - `file`
@@ -23,7 +23,7 @@ defaults < config file < env vars < flags
 - `non-interactive`
 - `yes`
 
-## Exemplos
+## Examples
 
 ### 1) Config file base
 
@@ -40,22 +40,22 @@ yes: false
 chainops --config chainops-cli.yaml plan
 ```
 
-### 2) Env sobrescreve config file
+### 2) Env overrides config file
 
 ```bash
 export CHAINOPS_OUTPUT=json
 chainops --config chainops-cli.yaml status
 ```
 
-### 3) Flag sobrescreve env/config
+### 3) Flag overrides env/config
 
 ```bash
 CHAINOPS_STATE_DIR=/tmp/state-env \
 chainops --config chainops-cli.yaml --state-dir /tmp/state-flag plan
 ```
 
-Resultado: `state-dir = /tmp/state-flag`.
+Result: `state-dir = /tmp/state-flag`.
 
-## Observabilidade da resolução
+## Resolution Observability
 
-Use `chainops context show` para inspecionar valores efetivos e arquivo carregado.
+Use `chainops context show` to inspect effective values and the loaded file.

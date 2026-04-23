@@ -2,35 +2,35 @@
 
 ## 1. Least Surprise
 
-- Comando principal sempre previsível.
-- `render` mostra config canônica por padrão.
-- `apply` nunca roda silenciosamente em modo não interativo sem `--yes`.
+- The main command is always predictable.
+- `render` shows canonical config by default.
+- `apply` never runs silently in non-interactive mode without `--yes`.
 
 ## 2. Progressive Disclosure
 
-- Caminho básico curto: `init -> doctor -> render -> plan -> apply`.
-- Features avançadas ficam em flags/subcomandos (`plan --out`, `apply <plan-file>`, `explain`).
+- Short basic path: `init -> doctor -> render -> plan -> apply`.
+- Advanced features live in flags/subcommands (`plan --out`, `apply <plan-file>`, `explain`).
 
 ## 3. Safe by Default
 
 - `plan`/`render` side-effect free.
-- `apply` com confirmação explícita.
-- `destroy` é explícito e local-only na implementação atual.
+- `apply` uses explicit confirmation.
+- `destroy` is explicit and local-only in the current implementation.
 
 ## 4. Explainability
 
-- `explain` para schema/plugins/perfis.
-- `doctor` com checks + hints acionáveis.
-- Mensagens de erro no formato título/causa/correção/próximo comando.
+- `explain` covers schema/plugins/profiles.
+- `doctor` returns checks plus actionable hints.
+- Error messages follow the title/cause/fix/next-command format.
 
 ## 5. Discoverability
 
-- `--help` com exemplos práticos.
-- `completion` para shells principais.
-- `profile list/show` e `plugin list` para navegação guiada.
+- `--help` includes practical examples.
+- `completion` is available for major shells.
+- `profile list/show` and `plugin list` support guided discovery.
 
 ## 6. Automation Friendly
 
-- Saída estruturada para comandos principais: `table|json|yaml`.
-- Handoff explícito via `plan --out`.
-- Config precedence explícita e observável (`context show`).
+- Structured output for main commands: `table|json|yaml`.
+- Explicit handoff via `plan --out`.
+- Config precedence is explicit and observable (`context show`).
